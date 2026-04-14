@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}System Logs – Raha{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-8 py-10 space-y-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">System Logs</h1>
+      <p style="color:var(--text-secondary)">System activity event log — last 200 entries.</p>
+    </div>
+    <a href="/admin/dashboard" class="btn-outline"><i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard</a>
+  </div>
+  <div class="input-icon max-w-sm">
+    <i data-lucide="search" class="icon w-4 h-4"></i>
+    <input id="q" class="input" placeholder="Filter logs…" oninput="filter()"/>
+  </div>
+  <div class="card overflow-hidden">
+    <table class="data-table">
+      <thead><tr><th>Time</th><th>Event</th><th>User ID</th><th>Details</th></tr></thead>
+      <tbody id="logs-body"><tr><td colspan="4" class="text-center py-8" style="color:var(--text-muted)">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <p class="text-sm" style="color:var(--text-muted)">Showing <span id="count">—</span> entries</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const u = Auth.user();
+if (!u || u.role !== 'admin') window.location.href = '/login';
+let all = [];
+async function load() {
+  try { all = await api('/api/admin/logs'); render(all); } catch(e) { toast(e.message,'err'); }
+}
+function filter() {
+  const q = document.getElementById('q').value.toLowerCase();
+  render(all.filter(l => (l.event_type||'').toLowerCase().includes(q) || (l.description||'').toLowerCase().includes(q)));
+}
+function render(logs) {
+  document.getElementById('count').textContent = logs.length;
+  const body = document.getElementById('logs-body');
+  if (!logs.length) { body.innerHTML = '<tr><td colspan="4" class="text-center py-8" style="color:var(--text-muted)">No entries.</td></tr>'; return; }
+  body.innerHTML = logs.map(l => `<tr>
+    <td class="font-mono text-xs whitespace-nowrap" style="color:var(--text-muted)">${fmtDate(l.timestamp)}</td>
+    <td class="font-semibold" style="color:var(--text-primary)">${esc(l.event_type??'—')}</td>
+    <td style="color:var(--text-secondary)">${l.user_id??'—'}</td>
+    <td class="max-w-xs truncate text-xs" style="color:var(--text-secondary)">${esc(l.description??'—')}</td>
+  </tr>`).join('');
+}
+load(); lucide.createIcons();
+</script>
+{% endblock %}

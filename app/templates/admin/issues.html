@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Issues – Raha{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-8 py-10 space-y-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Issue Review</h1>
+      <p style="color:var(--text-secondary)">Track and resolve reported system issues.</p>
+    </div>
+    <a href="/admin/dashboard" class="btn-outline"><i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard</a>
+  </div>
+  <div class="card overflow-hidden">
+    <table class="data-table">
+      <thead><tr><th>Title</th><th>Reported By</th><th>Description</th><th>Status</th><th>Date</th><th></th></tr></thead>
+      <tbody id="issues-body"><tr><td colspan="6" class="text-center py-8" style="color:var(--text-muted)">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const u = Auth.user();
+if (!u || u.role !== 'admin') window.location.href = '/login';
+async function load() {
+  try {
+    const issues = await api('/api/admin/issues');
+    const body = document.getElementById('issues-body');
+    if (!issues.length) { body.innerHTML = '<tr><td colspan="6" class="text-center py-8" style="color:var(--text-muted)">No issues reported.</td></tr>'; return; }
+    body.innerHTML = issues.map(i => `<tr>
+      <td class="font-semibold" style="color:var(--text-primary)">${esc(i.title)}</td>
+      <td style="color:var(--text-secondary)">${esc(i.full_name??'—')}</td>
+      <td class="max-w-xs truncate text-xs" style="color:var(--text-secondary)">${esc(i.description??'—')}</td>
+      <td><span class="badge ${i.status==='open'?'badge-open':'badge-closed'}">${i.status}</span></td>
+      <td class="text-xs" style="color:var(--text-muted)">${fmtDate(i.created_at)}</td>
+      <td>${i.status==='open'?`<button onclick="close_issue(${i.id})" class="btn-outline" style="padding:.3rem .9rem;font-size:.78rem">Close</button>`:'—'}</td>
+    </tr>`).join('');
+  } catch(e) { toast(e.message,'err'); }
+}
+async function close_issue(id) {
+  try { await api(`/api/admin/issues/${id}/close`,{method:'PUT'}); toast('Issue closed'); load(); }
+  catch(e) { toast(e.message,'err'); }
+}
+load(); lucide.createIcons();
+</script>
+{% endblock %}

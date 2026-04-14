@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Guides & Tutorials – Raha{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-8 py-10 space-y-10">
+  <div class="text-center space-y-2">
+    <h1 class="font-heading text-4xl font-bold" style="color:var(--text-primary)">Guides &amp; Tutorials</h1>
+    <p class="text-lg" style="color:var(--text-secondary)">Learn how to get the most from the Raha analysis platform.</p>
+  </div>
+  <div class="space-y-5">
+    {% for num, title, body in [
+      ('1','Upload Your Scans','Go to the <strong>Analyze</strong> page. Drag and drop your micro-CT images (TIFF, BMP, PNG) into the upload zone. You can upload multiple files at once as a batch.'),
+      ('2','Name Your Batch','Give your upload a meaningful batch title. This helps you find and organize your results later.'),
+      ('3','Run AI Analysis','Click <strong>Start Analysis</strong>. The platform will upload your files and run the periodontal assessment model. A progress bar tracks each step.'),
+      ('4','Review Results','Once complete, go to <strong>Results</strong> to see BV/TV ratio, bone loss metrics, confidence levels, and severity classification for every scan.'),
+      ('5','Report Issues','If you encounter any problem with a scan result, use the Report Issue button on the Results page.'),
+    ] %}
+    <div class="card p-7 flex gap-6 items-start">
+      <div class="w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center font-heading font-bold text-xl text-white"
+           style="background:linear-gradient(135deg,var(--rp),var(--rs))">{{ num }}</div>
+      <div class="space-y-1">
+        <h3 class="font-heading text-lg font-bold" style="color:var(--text-primary)">{{ title }}</h3>
+        <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">{{ body|safe }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="space-y-3">
+    <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">FAQ</h2>
+    {% for q, a in [
+      ('What image formats are supported?','TIFF (including multi-page stacks), BMP, PNG, JPG, and IIF. Maximum 50 MB per file.'),
+      ('How accurate is the AI model?','The segmentation model achieves >90% accuracy on the validation set. Results should always be reviewed by a qualified clinician.'),
+      ('Is my data secure?','All uploads are stored securely and are only accessible to your account. Admins can view aggregate logs but not your scan images.'),
+      ('How do I contact support?','Use the Contact Us page to submit a support request. We respond within 24 hours.'),
+    ] %}
+    <details class="card p-5 cursor-pointer group">
+      <summary class="font-semibold flex items-center justify-between list-none" style="color:var(--text-primary)">
+        {{ q }}
+        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180" style="color:var(--text-muted)"></i>
+      </summary>
+      <p class="mt-3 text-sm leading-relaxed" style="color:var(--text-secondary)">{{ a }}</p>
+    </details>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+if (!Auth.user()) window.location.href = '/login';
+lucide.createIcons();
+</script>
+{% endblock %}

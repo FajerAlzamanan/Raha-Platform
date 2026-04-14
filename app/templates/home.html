@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Raha – Periodontal AI Platform{% endblock %}
+
+{% block content %}
+
+<!-- ══ GUEST VIEW ══ -->
+<div id="guest-view" class="hidden">
+  <section class="relative py-20 px-8 text-center space-y-8 max-w-4xl mx-auto">
+    <div class="absolute inset-0 -z-10 rounded-3xl" style="background:linear-gradient(180deg,var(--rp15) 0%,transparent 100%);filter:blur(40px)"></div>
+    <h1 class="font-heading text-5xl md:text-6xl font-bold tracking-tight" style="color:var(--text-primary)">
+      Advanced <span style="color:var(--rp)">Micro-CT Analysis</span><br>for Periodontal Research
+    </h1>
+    <p class="text-xl max-w-2xl mx-auto" style="color:var(--text-secondary)">
+      Automate your alveolar bone loss measurements with AI-driven precision.
+      Upload, analyze, and export results in seconds.
+    </p>
+    <div class="flex flex-wrap justify-center gap-4">
+      <a href="/signup" class="btn-primary" style="font-size:1.1rem;padding:.8rem 2rem">
+        Get Started <i data-lucide="arrow-right" class="w-5 h-5"></i>
+      </a>
+      <a href="/about" class="btn-outline" style="font-size:1.1rem;padding:.8rem 2rem">Learn More</a>
+    </div>
+  </section>
+
+  <section class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 px-8 pb-20 max-w-7xl mx-auto">
+    {% for icon, title, body in [
+      ('upload-cloud','Easy Upload','Supports upload of TIFF, BMP, IIF formats.'),
+      ('cpu','AI Analyze','Executes deep-learning analysis using CNN and 3D U-Net models.'),
+      ('zap','Instant Results','Displays classification, confidence scores, and bone-loss metrics.'),
+      ('award','Research Grade','IRB-approved methodology and high model accuracy.'),
+    ] %}
+    <div class="card p-6 hover:shadow-lg transition-all" style="background:var(--bg-card-glass);backdrop-filter:blur(8px)">
+      <i data-lucide="{{ icon }}" class="w-10 h-10 mb-3" style="color:var(--rp)"></i>
+      <h3 class="font-heading font-bold text-lg mb-2" style="color:var(--text-primary)">{{ title }}</h3>
+      <p class="text-sm" style="color:var(--text-secondary)">{{ body }}</p>
+    </div>
+    {% endfor %}
+  </section>
+</div>
+
+<!-- ══ RESEARCHER VIEW ══ -->
+<div id="researcher-view" class="hidden max-w-6xl mx-auto px-8 py-12 space-y-12">
+  <header class="text-center space-y-3">
+    <h1 class="font-heading text-4xl font-bold" style="color:var(--text-primary)">
+      Welcome back, <span id="r-name" style="color:var(--rp)"></span>
+    </h1>
+    <p style="color:var(--text-secondary)">Access your research tools and view your analysis data in one place.</p>
+  </header>
+
+  <div class="grid md:grid-cols-3 gap-6">
+    {% for href, icon, title, body, cta in [
+      ('/analyze','activity','New Analysis','Upload micro-CT images for AI-driven periodontal assessment.','Start Now'),
+      ('/results','database','View Results','Access your history of analyzed cases and reports.','View History'),
+      ('/learn','file-text','Guides & Tutorials','Explore guides and tutorials on using the platform.','Learn More'),
+    ] %}
+    <a href="{{ href }}" class="group card p-8 flex flex-col items-center text-center hover:shadow-lg transition-all">
+      <div class="w-16 h-16 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform" style="background:var(--rp10)">
+        <i data-lucide="{{ icon }}" class="w-8 h-8" style="color:var(--rp)"></i>
+      </div>
+      <h3 class="font-heading text-xl font-bold mb-2" style="color:var(--text-primary)">{{ title }}</h3>
+      <p class="text-sm mb-6" style="color:var(--text-secondary)">{{ body }}</p>
+      <span class="font-medium flex items-center gap-1 mt-auto" style="color:var(--rp)">
+        {{ cta }} <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ══ ADMIN VIEW ══ -->
+<div id="admin-view" class="hidden max-w-7xl mx-auto px-8 py-12 space-y-8">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+      <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Admin Dashboard – System Overview</h1>
+      <p style="color:var(--text-secondary)">The central administrative control panel summarizing system status and activity.</p>
+    </div>
+    <span class="btn-outline" style="cursor:default;pointer-events:none" id="date-badge">
+      <i data-lucide="clock" class="w-4 h-4"></i> <span id="today-date"></span>
+    </span>
+  </div>
+
+  <!-- Quick links -->
+  <div class="flex flex-wrap gap-3">
+    <a href="/admin/users"  class="btn-ghost"><i data-lucide="users" class="w-4 h-4"></i> Manage Users</a>
+    <a href="/admin/issues" class="btn-ghost" style="color:#dc2626;background:rgba(239,68,68,.08)"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Review Issues</a>
+    <a href="/admin/logs"   class="btn-ghost" style="color:var(--rt);background:var(--rp10)"><i data-lucide="file-text" class="w-4 h-4"></i> View Logs</a>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <a href="/admin/users" class="card p-6 flex items-center justify-between group hover:shadow-lg transition-all">
+      <div>
+        <p class="text-sm font-medium mb-1" style="color:var(--text-secondary)">Total Users</p>
+        <p class="font-heading text-2xl font-bold" id="stat-users" style="color:var(--rt)">—</p>
+        <p class="text-xs mt-1" style="color:var(--text-muted)">Registered user accounts</p>
+      </div>
+      <i data-lucide="users" class="w-5 h-5 group-hover:scale-110 transition-transform" style="color:var(--rt)"></i>
+    </a>
+    <div class="card p-6 flex items-center justify-between group hover:shadow-lg transition-all">
+      <div>
+        <p class="text-sm font-medium mb-1" style="color:var(--text-secondary)">Total Analyses</p>
+        <p class="font-heading text-2xl font-bold" id="stat-scans" style="color:var(--rt)">—</p>
+        <p class="text-xs mt-1" style="color:var(--text-muted)">Analyses performed</p>
+      </div>
+      <i data-lucide="activity" class="w-5 h-5 group-hover:scale-110 transition-transform" style="color:var(--rt)"></i>
+    </div>
+    <a href="/admin/issues" class="card p-6 flex items-center justify-between group hover:shadow-lg transition-all">
+      <div>
+        <p class="text-sm font-medium mb-1" style="color:var(--text-secondary)">Pending Issues</p>
+        <p class="font-heading text-2xl font-bold" id="stat-issues" style="color:var(--rt)">—</p>
+        <p class="text-xs mt-1" style="color:var(--text-muted)">Unresolved issue reports</p>
+      </div>
+      <i data-lucide="alert-triangle" class="w-5 h-5 group-hover:scale-110 transition-transform" style="color:var(--rt)"></i>
+    </a>
+  </div>
+
+  <!-- Recent logs -->
+  <div class="card p-6 space-y-4">
+    <h2 class="font-heading text-lg font-semibold" style="color:var(--text-primary)">Recent Activity</h2>
+    <table class="data-table" id="activity-table">
+      <thead><tr>
+        <th>Action</th><th>User ID</th><th>Details</th><th>Time</th>
+      </tr></thead>
+      <tbody id="activity-body">
+        <tr><td colspan="4" class="text-center py-6" style="color:var(--text-muted)">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const u = Auth.user();
+  lucide.createIcons();
+
+  if (!u) {
+    document.getElementById('guest-view').classList.remove('hidden');
+  } else if (u.role === 'researcher') {
+    document.getElementById('researcher-view').classList.remove('hidden');
+    document.getElementById('r-name').textContent = displayName(u.full_name);
+  } else if (u.role === 'admin') {
+    document.getElementById('admin-view').classList.remove('hidden');
+    document.getElementById('today-date').textContent = new Date().toLocaleDateString();
+    await loadAdminStats();
+  }
+  lucide.createIcons();
+});
+
+function displayName(name) {
+  if (!name) return '';
+  const parts = name.split(' ');
+  const titles = ['Ms.','Mr.','Dr.','Mrs.','Prof.','Ms','Mr','Dr','Mrs','Prof'];
+  if (parts.length > 1 && titles.includes(parts[0])) return `${parts[0]} ${parts[1]}`;
+  return parts[0];
+}
+
+async function loadAdminStats() {
+  try {
+    const [users, logs, issues] = await Promise.all([
+      api('/api/admin/users'),
+      api('/api/admin/logs'),
+      api('/api/admin/issues'),
+    ]);
+    document.getElementById('stat-users').textContent  = users.length;
+    document.getElementById('stat-issues').textContent = issues.filter(i => i.status === 'open').length;
+
+    // count scans via logs
+    const scanLogs = logs.filter(l => l.event_type === 'upload');
+    document.getElementById('stat-scans').textContent = scanLogs.length;
+
+    // Recent activity table
+    const icons = { login:'shield', upload:'upload-cloud', analysis:'activity', issue_reported:'alert-triangle', signup:'user-plus' };
+    const colors = { login:'#3b82f6', upload:'#10b981', analysis:'#10b981', issue_reported:'#ef4444', signup:'#8b5cf6' };
+    const tbody = document.getElementById('activity-body');
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6" style="color:var(--text-muted)">No activity yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = logs.slice(0,8).map(l => `
+      <tr>
+        <td class="font-medium">
+          <div class="flex items-center gap-2">
+            <i data-lucide="${icons[l.event_type]||'circle'}" class="w-4 h-4" style="color:${colors[l.event_type]||'#94a3b8'}"></i>
+            ${esc(l.event_type ?? '—')}
+          </div>
+        </td>
+        <td style="color:var(--text-secondary)">${l.user_id ?? '—'}</td>
+        <td class="max-w-xs truncate" style="color:var(--text-secondary)">${esc(l.description ?? '—')}</td>
+        <td style="color:var(--text-muted)">${fmtDate(l.timestamp)}</td>
+      </tr>`).join('');
+    lucide.createIcons();
+  } catch(e) { /* ignore */ }
+}
+</script>
+{% endblock %}

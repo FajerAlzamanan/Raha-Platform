@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Raha{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <style>
+    /* ── Base ── */
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif; background: #f8fafc; color: #323232;
+      transition: background-color .35s ease, color .35s ease;
+    }
+    .font-heading { font-family: 'Outfit', sans-serif; }
+
+    /* ── Global colour tokens ── */
+    :root {
+      --text-primary:   #323232;
+      --text-secondary: #64748b;
+      --text-muted:     #94a3b8;
+      --bg-page:        #f8fafc;
+      --bg-card:        #ffffff;
+      --bg-card-glass:  rgba(255,255,255,.85);
+      --bg-surface:     #f8fafc;
+      --border-subtle:  rgba(0,0,0,.08);
+      --border-input:   rgba(0,0,0,.12);
+    }
+
+    /* ── Role-based CSS variables ── */
+    /* Default = Guest: terracotta */
+    :root {
+      --rp: #d18670; --rs: #d5745a; --rt: #bd5944;
+      --rp15: rgba(209,134,112,.15); --rp10: rgba(209,134,112,.10);
+      --rp20: rgba(209,134,112,.20);
+      --border: rgba(209,134,112,.25);
+      --surface: rgba(209,134,112,.08);
+    }
+    .theme-researcher {
+      --rp: #378d8c; --rs: #54a698; --rt: #75b7a9;
+      --rp15: rgba(55,141,140,.15); --rp10: rgba(55,141,140,.10);
+      --rp20: rgba(55,141,140,.20);
+      --border: rgba(55,141,140,.25);
+      --surface: rgba(55,141,140,.08);
+    }
+    .theme-admin {
+      --rp: #aa564d; --rs: #87423c; --rt: #783c37;
+      --rp15: rgba(170,86,77,.15); --rp10: rgba(170,86,77,.10);
+      --rp20: rgba(170,86,77,.20);
+      --border: rgba(170,86,77,.25);
+      --surface: rgba(170,86,77,.08);
+    }
+
+    /* ── Navbar ── */
+    .navbar {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .85rem 2rem;
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 1px 0 var(--border);
+      border-bottom: 1px solid var(--border);
+      transition: background .35s ease, border-color .35s ease, box-shadow .35s ease;
+    }
+    .nav-link {
+      color: #323232; font-weight: 500; text-decoration: none;
+      font-size: .9rem; transition: color .2s;
+    }
+    .nav-link:hover { color: var(--rp); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg-card); border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.05);
+      border: 1px solid var(--border);
+      transition: box-shadow .25s ease, transform .25s ease, background .35s ease, border-color .35s ease;
+    }
+    .card:hover { box-shadow: 0 10px 32px rgba(0,0,0,.1); transform: translateY(-2px); }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: .45rem;
+      padding: .6rem 1.4rem; border-radius: 9999px; border: none;
+      font-weight: 600; font-size: .9rem; cursor: pointer;
+      background: linear-gradient(135deg, var(--rp), var(--rs));
+      color: white;
+      box-shadow: 0 4px 14px var(--rp15);
+      transition: all .2s;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--rs), var(--rp));
+      box-shadow: 0 6px 20px var(--rp20);
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      display: inline-flex; align-items: center; gap: .45rem;
+      padding: .6rem 1.4rem; border-radius: 9999px;
+      font-weight: 600; font-size: .9rem; cursor: pointer;
+      background: transparent;
+      color: var(--rp); border: 1.5px solid var(--rp);
+      transition: all .2s;
+    }
+    .btn-outline:hover { background: var(--rp10); transform: translateY(-1px); }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: .45rem;
+      padding: .5rem 1.2rem; border-radius: 9999px;
+      font-weight: 500; font-size: .9rem; cursor: pointer;
+      background: var(--rp10); color: var(--rp); border: none;
+      transition: all .2s;
+    }
+    .btn-ghost:hover { background: var(--rp20); }
+
+    /* ── Inputs ── */
+    .input {
+      width: 100%; padding: .65rem 1rem; border-radius: 8px;
+      border: 1.5px solid var(--border-input);
+      font-family: 'Inter', sans-serif; font-size: .9rem; color: var(--text-primary);
+      background: var(--bg-card); outline: none;
+      transition: border-color .2s, box-shadow .2s, background .35s ease, color .35s ease;
+    }
+    .input:focus {
+      border-color: var(--rp);
+      box-shadow: 0 0 0 3px var(--rp15);
+    }
+    .input-icon { position: relative; }
+    .input-icon .icon {
+      position: absolute; left: .75rem; top: 50%; transform: translateY(-50%);
+      color: #9ca3af; pointer-events: none;
+    }
+    .input-icon .input { padding-left: 2.4rem; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: .25rem;
+      padding: .2rem .75rem; border-radius: 9999px;
+      font-size: .75rem; font-weight: 600; letter-spacing: .02em;
+    }
+    .badge-active   { background: rgba(55,141,140,.12); color: #378d8c; }
+    .badge-pending  { background: rgba(100,116,139,.12); color: #64748b; }
+    .badge-suspended{ background: rgba(239,68,68,.12);  color: #dc2626; }
+    .badge-admin    { background: rgba(170,86,77,.12);  color: #aa564d; }
+    .badge-researcher{ background: rgba(55,141,140,.12); color: #378d8c; }
+    .badge-open     { background: rgba(234,179,8,.12);  color: #a16207; }
+    .badge-closed   { background: rgba(55,141,140,.12); color: #378d8c; }
+    .badge-severe   { background: rgba(239,68,68,.12);  color: #dc2626; }
+    .badge-moderate { background: rgba(234,179,8,.12);  color: #a16207; }
+    .badge-mild     { background: rgba(55,141,140,.12); color: #378d8c; }
+
+    /* ── Alerts ── */
+    .alert-error   { background:#fef2f2; border:1.5px solid #fca5a5; color:#b91c1c; border-radius:8px; padding:.75rem 1rem; font-size:.875rem; }
+    .alert-success { background:#f0fdf4; border:1.5px solid #86efac; color:#15803d; border-radius:8px; padding:.75rem 1rem; font-size:.875rem; }
+
+    /* ── Animated blobs (auth pages) ── */
+    .blob-container { position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+    .blob {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); opacity: .5;
+      animation: blob-move 8s ease-in-out infinite;
+    }
+    @keyframes blob-move {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%      { transform: translate(30px,-20px) scale(1.05); }
+      66%      { transform: translate(-20px,10px) scale(.97); }
+    }
+    .blob-1 { width:384px;height:384px; top:25%; left:25%;
+               background:var(--rp15); animation-delay:0s; }
+    .blob-2 { width:384px;height:384px; bottom:25%; right:25%;
+               background:rgba(var(--rs-rgb),.12); animation-delay:2s; }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 2px dashed rgba(0,0,0,.18); border-radius: 16px;
+      padding: 3rem; text-align: center; cursor: pointer;
+      transition: all .2s;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--rp);
+      background: var(--rp10);
+      transform: scale(1.01);
+    }
+
+    /* ── Progress bar ── */
+    .progress-track { background: #e2e8f0; border-radius:9999px; height:8px; overflow:hidden; }
+    .progress-fill  {
+      height:100%; border-radius:9999px;
+      background: linear-gradient(90deg, var(--rp), var(--rs));
+      transition: width .3s ease;
+    }
+
+    /* ── Table ── */
+    .data-table { width:100%; border-collapse:collapse; font-size:.875rem; }
+    .data-table th {
+      text-align:left; padding:.75rem 1rem;
+      background:var(--bg-surface); color:var(--text-secondary); font-weight:600; font-size:.78rem;
+      text-transform:uppercase; letter-spacing:.05em;
+      border-bottom: 2px solid var(--border-subtle);
+      transition: background .35s ease, color .35s ease;
+    }
+    .data-table td { padding:.85rem 1rem; border-bottom:1px solid var(--border-subtle); color:var(--text-primary); transition: color .35s ease; }
+    .data-table tr:hover td { background:var(--bg-surface); }
+
+    /* ── Spinner overlay ── */
+    .spinner {
+      width:40px;height:40px; border-radius:50%;
+      border:3px solid #e2e8f0;
+      border-top-color: var(--rp);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    #toast-area { position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem; }
+    .toast {
+      padding:.75rem 1.25rem; border-radius:10px; font-weight:500; font-size:.875rem;
+      box-shadow:0 4px 20px rgba(0,0,0,.12); animation: slide-in .3s ease;
+    }
+    .toast-ok  { background:#f0fdf4; color:#15803d; border-left:4px solid #22c55e; }
+    .toast-err { background:#fef2f2; color:#b91c1c; border-left:4px solid #ef4444; }
+    @keyframes slide-in { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+    /* ── Page fade-in ── */
+    .page-in { animation: fade-up .35s ease both; }
+    @keyframes fade-up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;
+      display:flex;align-items:center;justify-content:center;
+      animation:fade-in .2s ease;
+    }
+    .modal-box {
+      background:white;border-radius:16px;padding:2rem;
+      max-width:28rem;width:100%;margin:1rem;
+      box-shadow:0 20px 60px rgba(0,0,0,.2);
+      animation:scale-in .25s ease;
+    }
+    @keyframes fade-in  { from{opacity:0}  to{opacity:1} }
+    @keyframes scale-in { from{transform:scale(.94);opacity:0} to{transform:scale(1);opacity:1} }
+
+    /* ── Dark Mode ── */
+    body.dark {
+      /* flip all colour tokens */
+      --text-primary:   #e2e8f0;
+      --text-secondary: #a0aec0;
+      --text-muted:     #718096;
+      --bg-page:        #0f1117;
+      --bg-card:        #1a1d27;
+      --bg-card-glass:  rgba(26,29,39,.88);
+      --bg-surface:     #242736;
+      --border-subtle:  rgba(255,255,255,.08);
+      --border-input:   rgba(255,255,255,.14);
+
+      background: #0f1117;
+      color: #e2e8f0;
+    }
+    body.dark .navbar {
+      background: rgba(26,29,39,.88);
+      box-shadow: 0 1px 0 rgba(255,255,255,.06);
+      border-bottom-color: rgba(255,255,255,.07);
+    }
+    body.dark .nav-link { color: #a0aec0; }
+    body.dark .nav-link:hover { color: var(--rp); }
+    body.dark .card {
+      background: var(--bg-card);
+      border-color: rgba(255,255,255,.08);
+      box-shadow: 0 4px 24px rgba(0,0,0,.4);
+    }
+    body.dark .card:hover { box-shadow: 0 10px 36px rgba(0,0,0,.55); }
+    body.dark .input {
+      background: #242736;
+      color: var(--text-primary);
+      border-color: var(--border-input);
+    }
+    body.dark .input::placeholder { color: var(--text-muted); }
+    body.dark .input:focus { border-color: var(--rp); box-shadow: 0 0 0 3px var(--rp15); }
+    body.dark .input-icon .icon { color: var(--text-muted); }
+    /* labels / headings that still use text-* Tailwind classes */
+    body.dark label,
+    body.dark h1, body.dark h2, body.dark h3, body.dark h4 { color: inherit; }
+    body.dark .btn-outline { color: var(--rp); border-color: var(--rp); }
+    body.dark .btn-outline:hover { background: var(--rp10); }
+    body.dark .btn-ghost { background: var(--rp10); color: var(--rp); }
+    body.dark .btn-ghost:hover { background: var(--rp20); }
+    /* Tailwind utility overrides in dark mode */
+    body.dark .bg-white { background: var(--bg-card) !important; }
+    body.dark .bg-gray-50,
+    body.dark .bg-slate-50 { background: var(--bg-surface) !important; }
+    body.dark .text-gray-900,
+    body.dark .text-slate-900 { color: var(--text-primary) !important; }
+    body.dark .text-gray-600,
+    body.dark .text-slate-600,
+    body.dark .text-gray-500,
+    body.dark .text-slate-500 { color: var(--text-secondary) !important; }
+    body.dark .text-gray-400,
+    body.dark .text-slate-400 { color: var(--text-muted) !important; }
+    body.dark .border-gray-200,
+    body.dark .border-slate-200 { border-color: var(--border-subtle) !important; }
+    body.dark .divide-gray-200 > * + * { border-color: var(--border-subtle) !important; }
+    /* Tables */
+    body.dark .data-table th {
+      background: #1e2130; color: var(--text-muted);
+      border-bottom-color: rgba(255,255,255,.09);
+    }
+    body.dark .data-table td { color: var(--text-primary); border-bottom-color: rgba(255,255,255,.06); }
+    body.dark .data-table tr:hover td { background: rgba(255,255,255,.03); }
+    /* Modal */
+    body.dark .modal-box { background: var(--bg-card); color: var(--text-primary); }
+    body.dark .modal-overlay { background: rgba(0,0,0,.70); }
+    /* Toasts & alerts */
+    body.dark .toast-ok  { background: #0d2318; color: #6ee7b7; border-left-color: #10b981; }
+    body.dark .toast-err { background: #2a1016; color: #fca5a5; border-left-color: #ef4444; }
+    body.dark .alert-error   { background: #2a1016; border-color: #ef4444; color: #fca5a5; }
+    body.dark .alert-success { background: #0d2318; border-color: #10b981; color: #6ee7b7; }
+    /* Footer */
+    body.dark footer { background: #13161f !important; border-color: rgba(255,255,255,.07) !important; }
+    body.dark footer * { color: var(--text-muted) !important; }
+    /* Upload zone */
+    body.dark .upload-zone { border-color: rgba(255,255,255,.16); background: var(--bg-surface); }
+    body.dark .upload-zone:hover,
+    body.dark .upload-zone.drag-over { border-color: var(--rp); background: var(--rp10); }
+    /* Misc */
+    body.dark .progress-track { background: #2d3748; }
+    body.dark .spinner { border-color: #2d3748; border-top-color: var(--rp); }
+    body.dark hr,
+    body.dark [style*="border-color:rgba(0,0,0"] { border-color: var(--border-subtle) !important; }
+    /* Badges stay readable — boost contrast slightly */
+    body.dark .badge-pending { background: rgba(160,174,192,.15); color: #a0aec0; }
+    body.dark .badge-open    { background: rgba(234,179,8,.15);   color: #fbbf24; }
+    body.dark .badge-moderate{ background: rgba(234,179,8,.15);   color: #fbbf24; }
+
+    /* ── Dark toggle button ── */
+    #dark-toggle {
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--rp10); color: var(--rp); cursor: pointer;
+      transition: background .2s, transform .2s;
+      flex-shrink: 0;
+    }
+    #dark-toggle:hover { background: var(--rp20); transform: rotate(20deg); }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body id="app-body" class="min-h-screen flex flex-col">
+
+<!-- ════════════════ NAVBAR ════════════════ -->
+<nav class="navbar font-heading" id="navbar">
+  <a href="/" class="flex items-center gap-2">
+    <img src="/uploads/Raha_Website_Logo.svg" alt="Raha" class="h-16 w-auto">
+  </a>
+
+  <div class="flex items-center gap-6" id="nav-links"></div>
+
+  <div class="flex items-center gap-3">
+    <button id="dark-toggle" onclick="toggleDark()" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <i data-lucide="moon" id="dark-icon" style="width:16px;height:16px;"></i>
+    </button>
+    <div class="flex items-center gap-3" id="nav-actions"></div>
+  </div>
+</nav>
+
+<!-- ════════════════ MAIN ════════════════ -->
+<main class="flex-1 page-in">{% block content %}{% endblock %}</main>
+
+<!-- ════════════════ FOOTER ════════════════ -->
+<footer class="border-t py-6 mt-auto" style="border-color:var(--border);background:white;transition:background .35s ease,border-color .35s ease">
+  <div class="max-w-7xl mx-auto px-8 text-center text-sm" style="color:#323232;opacity:.5">
+    Raha — Deep Learning Models for Micro-CT Analysis of Periodontitis. IAU Research Project 2025–2026. IRB-2020-02-300.
+  </div>
+</footer>
+
+<!-- Toast area -->
+<div id="toast-area"></div>
+
+<!-- Modal slot -->
+<div id="modal-slot"></div>
+
+<!-- ════════════════ GLOBAL JS ════════════════ -->
+<script>
+/* ── Auth ── */
+const Auth = {
+  token()  { return localStorage.getItem('raha_token') || sessionStorage.getItem('raha_token'); },
+  user()   {
+    const r = localStorage.getItem('raha_user') || sessionStorage.getItem('raha_user');
+    return r ? JSON.parse(r) : null;
+  },
+  save(token, user, remember) {
+    const s = remember ? localStorage : sessionStorage;
+    s.setItem('raha_token', token);
+    s.setItem('raha_user', JSON.stringify(user));
+  },
+  clear() {
+    ['raha_token','raha_user'].forEach(k => {
+      localStorage.removeItem(k); sessionStorage.removeItem(k);
+    });
+  },
+  headers() {
+    return { 'Authorization': `Bearer ${this.token()}`, 'Content-Type': 'application/json' };
+  },
+};
+
+/* ── Theme ── */
+function applyTheme() {
+  const u = Auth.user();
+  const body = document.getElementById('app-body');
+  body.classList.remove('theme-researcher','theme-admin');
+  if (u?.role === 'researcher') body.classList.add('theme-researcher');
+  if (u?.role === 'admin')      body.classList.add('theme-admin');
+}
+
+/* ── Navbar ── */
+function buildNav() {
+  const u = Auth.user();
+  const links   = document.getElementById('nav-links');
+  const actions = document.getElementById('nav-actions');
+
+  if (!u) {
+    links.innerHTML = `
+      <a href="/"       class="nav-link">Home</a>
+      <a href="/about"  class="nav-link">About Us</a>
+      <a href="/contact"class="nav-link">Contact Us</a>`;
+    actions.innerHTML = `
+      <a href="/login"  class="btn-outline" style="padding:.45rem 1.1rem;font-size:.85rem">Login</a>
+      <a href="/signup" class="btn-primary" style="padding:.45rem 1.1rem;font-size:.85rem">Sign Up</a>`;
+  } else if (u.role === 'researcher') {
+    links.innerHTML = `
+      <a href="/"        class="nav-link">Home</a>
+      <a href="/analyze" class="nav-link">Start Analyze</a>
+      <a href="/results" class="nav-link">View Results</a>
+      <a href="/learn"   class="nav-link">Guides & Tutorials</a>
+      <a href="/contact" class="nav-link">Contact Us</a>`;
+    actions.innerHTML = `
+      <a href="/profile" class="btn-ghost">Profile</a>
+      <button onclick="doLogout()" class="btn-primary">Logout</button>`;
+  } else if (u.role === 'admin') {
+    links.innerHTML = `
+      <a href="/"            class="nav-link">Home</a>
+      <a href="/admin/users" class="nav-link">Users</a>
+      <a href="/admin/issues"class="nav-link">Issues</a>
+      <a href="/admin/logs"  class="nav-link">Logs</a>`;
+    actions.innerHTML = `
+      <a href="/profile" class="btn-ghost">Profile</a>
+      <button onclick="doLogout()" class="btn-primary">Logout</button>`;
+  }
+}
+
+function doLogout() {
+  Auth.clear();
+  showModal(`
+    <div class="text-center space-y-4">
+      <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+        <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+      </div>
+      <h3 class="font-heading text-xl font-bold">Logged Out Successfully</h3>
+      <p style="color:#64748b">You have been safely logged out.</p>
+      <button onclick="closeModal();window.location.href='/login'" class="btn-primary w-full justify-center">Close</button>
+    </div>`);
+  lucide.createIcons();
+  setTimeout(() => window.location.href = '/login', 2000);
+}
+
+/* ── API ── */
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: Auth.headers(), ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || data.message || 'Request failed');
+  return data;
+}
+
+/* ── Toast ── */
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-area').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ── Modal ── */
+function showModal(html) {
+  document.getElementById('modal-slot').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal-box">${html}</div>
+    </div>`;
+  lucide.createIcons();
+}
+function closeModal() {
+  document.getElementById('modal-slot').innerHTML = '';
+}
+
+/* ── Helpers ── */
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+/* ── Dark Mode ── */
+function toggleDark() {
+  const body = document.getElementById('app-body');
+  const isDark = body.classList.toggle('dark');
+  localStorage.setItem('raha_dark', isDark ? '1' : '0');
+  updateDarkIcon();
+}
+function updateDarkIcon() {
+  const body  = document.getElementById('app-body');
+  const isDark = body.classList.contains('dark');
+  const icon  = document.getElementById('dark-icon');
+  if (icon) {
+    icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    lucide.createIcons();
+  }
+}
+(function loadDarkMode() {
+  if (localStorage.getItem('raha_dark') === '1') {
+    document.getElementById('app-body').classList.add('dark');
+  }
+})();
+
+applyTheme();
+buildNav();
+document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); updateDarkIcon(); });
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

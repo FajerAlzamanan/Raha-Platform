@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard – Raha{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-8 py-10 space-y-8">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+      <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Admin Dashboard – System Overview</h1>
+      <p style="color:var(--text-secondary)">The central administrative control panel summarizing system status and activity.</p>
+    </div>
+    <span class="btn-outline" style="pointer-events:none;cursor:default">
+      <i data-lucide="clock" class="w-4 h-4"></i> <span id="today"></span>
+    </span>
+  </div>
+
+  <div class="flex flex-wrap gap-3">
+    <a href="/admin/users"  class="btn-ghost"><i data-lucide="users" class="w-4 h-4"></i> Manage Users</a>
+    <a href="/admin/issues" class="btn-ghost" style="color:#dc2626;background:rgba(239,68,68,.08)"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Review Issues</a>
+    <a href="/admin/logs"   class="btn-ghost" style="color:var(--rt);background:var(--rp10)"><i data-lucide="file-text" class="w-4 h-4"></i> View Logs</a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <a href="/admin/users"  class="card p-6 flex items-center justify-between group hover:shadow-lg transition-all">
+      <div><p class="text-sm font-medium mb-1" style="color:var(--text-secondary)">Total Users</p><p class="font-heading text-2xl font-bold" id="s-users" style="color:var(--rt)">—</p><p class="text-xs mt-1" style="color:var(--text-muted)">Displays number of registered accounts</p></div>
+      <i data-lucide="users" class="w-5 h-5 group-hover:scale-110 transition-transform" style="color:var(--rt)"></i>
+    </a>
+    <div class="card p-6 flex items-center justify-between group hover:shadow-lg transition-all">
+      <div><p class="text-sm font-medium mb-1" style="color:var(--text-secondary)">Total Analyses</p><p class="font-heading text-2xl font-bold" id="s-scans" style="color:var(--rt)">—</p><p class="text-xs mt-1" style="color:var(--text-muted)">Shows total analyses performed</p></div>
+      <i data-lucide="activity" class="w-5 h-5 group-hover:scale-110 transition-transform" style="color:var(--rt)"></i>
+    </div>
+    <a href="/admin/issues" class="card p-6 flex items-center justify-between group hover:shadow-lg transition-all">
+      <div><p class="text-sm font-medium mb-1" style="color:var(--text-secondary)">Pending Issues</p><p class="font-heading text-2xl font-bold" id="s-issues" style="color:var(--rt)">—</p><p class="text-xs mt-1" style="color:var(--text-muted)">Unresolved issue reports</p></div>
+      <i data-lucide="alert-triangle" class="w-5 h-5 group-hover:scale-110 transition-transform" style="color:var(--rt)"></i>
+    </a>
+  </div>
+
+  <div class="card p-6 space-y-4">
+    <h2 class="font-heading text-lg font-semibold" style="color:var(--text-primary)">Recent Activity</h2>
+    <table class="data-table">
+      <thead><tr><th>Action</th><th>User ID</th><th>Details</th><th>Time</th></tr></thead>
+      <tbody id="activity-body"><tr><td colspan="4" class="text-center py-6" style="color:var(--text-muted)">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const u = Auth.user();
+if (!u || u.role !== 'admin') window.location.href = '/login';
+document.getElementById('today').textContent = new Date().toLocaleDateString();
+
+async function load() {
+  try {
+    const [users, logs, issues] = await Promise.all([api('/api/admin/users'),api('/api/admin/logs'),api('/api/admin/issues')]);
+    document.getElementById('s-users').textContent  = users.length;
+    document.getElementById('s-issues').textContent = issues.filter(i=>i.status==='open').length;
+    document.getElementById('s-scans').textContent  = logs.filter(l=>l.event_type==='upload').length;
+    const icons = {login:'shield',upload:'upload-cloud',analysis:'activity',issue_reported:'alert-triangle'};
+    const colors= {login:'#3b82f6',upload:'#10b981',analysis:'#10b981',issue_reported:'#ef4444'};
+    const body = document.getElementById('activity-body');
+    body.innerHTML = logs.slice(0,8).map(l=>`<tr>
+      <td class="font-medium"><div class="flex items-center gap-2"><i data-lucide="${icons[l.event_type]||'circle'}" class="w-4 h-4" style="color:${colors[l.event_type]||'#94a3b8'}"></i>${esc(l.event_type??'—')}</div></td>
+      <td style="color:var(--text-secondary)">${l.user_id??'—'}</td>
+      <td class="max-w-xs truncate" style="color:var(--text-secondary)">${esc(l.description??'—')}</td>
+      <td style="color:var(--text-muted)">${fmtDate(l.timestamp)}</td>
+    </tr>`).join('');
+    lucide.createIcons();
+  } catch(e) { toast(e.message,'err'); }
+}
+load(); lucide.createIcons();
+</script>
+{% endblock %}

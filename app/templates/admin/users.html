@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Manage Users – Raha{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-8 py-10 space-y-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Manage Users</h1>
+      <p style="color:var(--text-secondary)">View, search, and manage all registered researchers.</p>
+    </div>
+    <a href="/admin/dashboard" class="btn-outline"><i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard</a>
+  </div>
+
+  <div class="flex gap-3 flex-wrap">
+    <div class="input-icon flex-1 min-w-0 max-w-sm">
+      <i data-lucide="search" class="icon w-4 h-4"></i>
+      <input id="q" class="input" placeholder="Search by name or email…" oninput="filterUsers()"/>
+    </div>
+    <select id="f-role" class="input max-w-[160px]" onchange="filterUsers()">
+      <option value="">All roles</option>
+      <option value="researcher">Researcher</option>
+      <option value="admin">Admin</option>
+      <option value="suspended">Suspended</option>
+    </select>
+  </div>
+
+  <div class="card overflow-hidden">
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Title</th><th>Joined</th><th></th></tr></thead>
+      <tbody id="users-body"><tr><td colspan="6" class="text-center py-8" style="color:var(--text-muted)">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <p class="text-sm" style="color:var(--text-muted)">Showing <span id="count">—</span> users</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const u = Auth.user();
+if (!u || u.role !== 'admin') window.location.href = '/login';
+let all = [];
+async function load() {
+  try { all = await api('/api/admin/users'); render(all); } catch(e) { toast(e.message,'err'); }
+}
+function filterUsers() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const r = document.getElementById('f-role').value;
+  render(all.filter(u => (!q || u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) && (!r || u.role===r)));
+}
+function render(users) {
+  document.getElementById('count').textContent = users.length;
+  const body = document.getElementById('users-body');
+  if (!users.length) { body.innerHTML = '<tr><td colspan="6" class="text-center py-8" style="color:var(--text-muted)">No users found.</td></tr>'; return; }
+  body.innerHTML = users.map(u => {
+    const rc = u.role==='admin'?'badge-admin':u.role==='suspended'?'badge-suspended':'badge-researcher';
+    return `<tr>
+      <td class="font-medium" style="color:var(--text-primary)">${esc(u.full_name)}</td>
+      <td class="font-mono text-xs" style="color:var(--text-secondary)">${esc(u.email)}</td>
+      <td><span class="badge ${rc}">${u.role}</span></td>
+      <td style="color:var(--text-secondary)">${esc(u.title??'—')}</td>
+      <td class="text-xs" style="color:var(--text-muted)">${fmtDate(u.created_at)}</td>
+      <td>
+        ${u.role !== 'admin' ? `<button onclick="toggle(${u.id},'${u.role}')" class="btn-outline" style="padding:.3rem .9rem;font-size:.78rem;${u.role==='suspended'?'':'color:#dc2626;border-color:#dc2626'}">${u.role==='suspended'?'Activate':'Suspend'}</button>` : '<span style="color:var(--text-muted);font-size:.8rem">—</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+async function toggle(id, role) {
+  try {
+    const res = await api(`/api/admin/users/${id}/toggle`, { method:'PUT' });
+    toast(`User ${res.role}`); await load();
+  } catch(e) { toast(e.message,'err'); }
+}
+load(); lucide.createIcons();
+</script>
+{% endblock %}

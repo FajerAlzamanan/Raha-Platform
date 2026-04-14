@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Results – Raha{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-8 py-10 space-y-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Analysis Results</h1>
+      <p style="color:var(--text-secondary)">Your uploaded scan history and AI analysis results.</p>
+    </div>
+    <a href="/analyze" class="btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> New Analysis</a>
+  </div>
+
+  <div id="loading" class="text-center py-20" style="color:var(--text-secondary)">
+    <div class="spinner mx-auto mb-4"></div> Loading your scans…
+  </div>
+  <div id="empty" class="hidden card p-16 text-center space-y-4">
+    <i data-lucide="file-x" class="w-12 h-12 mx-auto" style="color:var(--text-muted)"></i>
+    <p class="font-heading text-xl font-bold" style="color:var(--text-primary)">No scans yet</p>
+    <p style="color:var(--text-secondary)">Upload your first scan to see results here.</p>
+    <a href="/analyze" class="btn-primary inline-flex mx-auto">Start Analyzing</a>
+  </div>
+  <div id="results-grid" class="hidden grid md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+if (!Auth.user()) window.location.href = '/login';
+async function load() {
+  try {
+    const scans = await api('/api/scans/my-scans');
+    document.getElementById('loading').classList.add('hidden');
+    if (!scans.length) { document.getElementById('empty').classList.remove('hidden'); return; }
+    const grid = document.getElementById('results-grid');
+    grid.classList.remove('hidden');
+    grid.innerHTML = scans.map(s => {
+      const sv = s.severity ?? 'pending';
+      const bc = sv==='severe'?'badge-severe':sv==='moderate'?'badge-moderate':sv==='mild'?'badge-mild':'badge-pending';
+      return `<div class="card p-6 space-y-4">
+        <div class="flex items-start justify-between gap-2">
+          <p class="font-medium truncate" style="color:var(--text-primary)">${esc(s.original_name)}</p>
+          <span class="badge ${bc} flex-shrink-0">${sv}</span>
+        </div>
+        <p class="text-xs font-mono" style="color:var(--text-muted)">${fmtDate(s.uploaded_at)}</p>
+        ${s.BV_mm3 ? `
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.BV_mm3}</p><p class="text-xs" style="color:var(--text-muted)">BV mm³</p></div>
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.TV_mm3}</p><p class="text-xs" style="color:var(--text-muted)">TV mm³</p></div>
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.BV_TV}</p><p class="text-xs" style="color:var(--text-muted)">BV/TV</p></div>
+        </div>` : `<p class="text-sm text-center py-2" style="color:var(--text-muted)">Analysis pending…</p>`}
+        <button onclick="reportIssue(${s.id})" class="btn-outline w-full justify-center text-sm" style="padding:.4rem">
+          <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Report Issue
+        </button>
+      </div>`;
+    }).join('');
+    lucide.createIcons();
+  } catch(err) { document.getElementById('loading').innerHTML = `<p style="color:#dc2626">${err.message}</p>`; }
+}
+async function reportIssue(scanId) {
+  const title = prompt('Issue title:'); if (!title) return;
+  const desc  = prompt('Describe the issue:'); if (!desc) return;
+  try {
+    await api('/api/scans/issues', { method:'POST', body:JSON.stringify({scan_id:scanId,title,description:desc}) });
+    toast('Issue reported — thank you!');
+  } catch(e) { toast(e.message,'err'); }
+}
+load(); lucide.createIcons();
+</script>
+{% endblock %}

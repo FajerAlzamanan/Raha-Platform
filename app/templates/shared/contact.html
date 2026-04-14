@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Contact Us – Raha{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-8 py-16 space-y-8">
+  <div class="text-center space-y-2">
+    <h1 class="font-heading text-4xl font-bold" style="color:var(--text-primary)">Contact Us</h1>
+    <p class="text-lg" style="color:var(--text-secondary)">Have a question or issue? We're here to help.</p>
+  </div>
+  <div class="card p-10 space-y-5">
+    <div id="alert-box" class="hidden"></div>
+    <form id="contact-form" class="space-y-5">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Name *</label>
+          <input id="f-name" class="input" placeholder="Dr. Jane Smith" required/>
+        </div>
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Email *</label>
+          <input id="f-email" type="email" class="input" placeholder="you@example.com" required/>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <label class="text-sm font-medium" style="color:var(--text-primary)">Issue Type</label>
+        <select id="f-type" class="input">
+          <option value="">Select type (optional)</option>
+          <option>Technical Problem</option><option>Account Issue</option>
+          <option>Analysis Question</option><option>Feature Request</option><option>Other</option>
+        </select>
+      </div>
+      <div class="space-y-1">
+        <label class="text-sm font-medium" style="color:var(--text-primary)">Message *</label>
+        <textarea id="f-msg" class="input h-36 resize-none" placeholder="Describe your question or issue…" required></textarea>
+      </div>
+      <button type="submit" class="btn-primary w-full justify-center py-3 text-base" id="btn-send">
+        <span>Send Message</span> <i data-lucide="send" class="w-4 h-4"></i>
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const u = Auth.user();
+if (u) {
+  document.getElementById('f-name').value  = u.full_name ?? '';
+  document.getElementById('f-email').value = u.email ?? '';
+}
+document.getElementById('contact-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-send');
+  btn.innerHTML = 'Sending… <i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i>';
+  lucide.createIcons();
+  try {
+    await fetch('/api/contact/guest', { method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ name:document.getElementById('f-name').value.trim(), email:document.getElementById('f-email').value.trim(), message:document.getElementById('f-msg').value.trim(), issue_type:document.getElementById('f-type').value }) });
+    const al = document.getElementById('alert-box');
+    al.textContent = "Message sent! We'll get back to you within 24 hours.";
+    al.className = 'alert-success'; al.classList.remove('hidden');
+    document.getElementById('f-msg').value = '';
+  } catch(e) {
+    const al = document.getElementById('alert-box');
+    al.textContent = 'Failed to send. Please try again.'; al.className = 'alert-error'; al.classList.remove('hidden');
+  } finally {
+    btn.innerHTML = 'Send Message <i data-lucide="send" class="w-4 h-4"></i>'; lucide.createIcons();
+  }
+});
+lucide.createIcons();
+</script>
+{% endblock %}

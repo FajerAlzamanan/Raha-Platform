@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Sign Up – Raha{% endblock %}
+
+{% block content %}
+<div class="blob-container">
+  <div class="blob blob-1" style="top:33%;right:33%;left:auto"></div>
+  <div class="blob blob-2" style="bottom:33%;left:33%;right:auto"></div>
+</div>
+
+<div class="min-h-screen flex items-center justify-center py-12 px-4 relative z-10">
+  <div class="w-full max-w-lg">
+    <div class="card p-8" style="background:var(--bg-card-glass);backdrop-filter:blur(12px);box-shadow:0 20px 60px rgba(0,0,0,.12)">
+
+      <div class="text-center mb-7">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+             style="background:linear-gradient(135deg,var(--rp),var(--rs));box-shadow:0 8px 20px var(--rp15)">
+          <i data-lucide="user-plus" class="w-8 h-8 text-white"></i>
+        </div>
+        <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Create a New Account.</h1>
+        <p class="mt-1 text-sm" style="color:var(--text-secondary)">Join the Raha research community</p>
+      </div>
+
+      <div id="alert-form" class="alert-error hidden mb-5"></div>
+
+      <form id="signup-form" class="space-y-4">
+
+        <!-- Title (radio) -->
+        <div class="space-y-2">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Title <span class="text-red-500">*</span></label>
+          <div class="flex flex-wrap gap-4" id="title-group">
+            {% for t in ['Dr','Ms','Mr','Mrs','Other'] %}
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+              <input type="radio" name="title" value="{{ t }}" class="accent-[var(--rp)]"/>
+              {{ t }}
+            </label>
+            {% endfor %}
+          </div>
+          <p id="err-title" class="text-xs text-red-500 hidden"></p>
+        </div>
+
+        <!-- Name -->
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Full Name <span class="text-red-500">*</span></label>
+          <div class="input-icon">
+            <i data-lucide="user" class="icon w-4 h-4"></i>
+            <input id="f-name" type="text" class="input" placeholder="Jane Doe" required/>
+          </div>
+          <p id="err-name" class="text-xs text-red-500 hidden"></p>
+        </div>
+
+        <!-- Institution -->
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Institution</label>
+          <div class="input-icon">
+            <i data-lucide="building-2" class="icon w-4 h-4"></i>
+            <input id="f-institution" type="text" class="input" placeholder="University / Research Center"/>
+          </div>
+        </div>
+
+        <!-- Professional Role -->
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Professional Role <span class="text-red-500">*</span></label>
+          <select id="f-role" class="input" required>
+            <option value="">Select your role</option>
+            <option>Biomedical Researcher</option>
+            <option>Dental Clinician</option>
+            <option>AI Developer</option>
+            <option>Academic Supervisor</option>
+            <option>Student</option>
+            <option>Researcher</option>
+            <option>Other</option>
+          </select>
+          <p id="err-role" class="text-xs text-red-500 hidden"></p>
+          <input id="f-custom-role" type="text" class="input mt-2 hidden" placeholder="e.g. Clinical Research Coordinator"/>
+        </div>
+
+        <!-- Gender -->
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Gender <span class="text-red-500">*</span></label>
+          <select id="f-gender" class="input" required>
+            <option value="">Select your gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+          <p id="err-gender" class="text-xs text-red-500 hidden"></p>
+        </div>
+
+        <!-- Email -->
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Email Address <span class="text-red-500">*</span></label>
+          <div class="input-icon">
+            <i data-lucide="mail" class="icon w-4 h-4"></i>
+            <input id="f-email" type="email" class="input" placeholder="researcher@institution.edu" required/>
+          </div>
+          <p id="err-email" class="text-xs text-red-500 hidden"></p>
+        </div>
+
+        <!-- Password row -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1">
+            <label class="text-sm font-medium" style="color:var(--text-primary)">Password <span class="text-red-500">*</span></label>
+            <div class="input-icon relative">
+              <i data-lucide="lock" class="icon w-4 h-4"></i>
+              <input id="f-pw" type="password" class="input" style="padding-right:2.5rem" placeholder="••••••••" required/>
+              <button type="button" onclick="togglePw('f-pw')"
+                class="absolute right-3 top-1/2 -translate-y-1/2" style="color:#9ca3af;background:none;border:none;cursor:pointer">
+                <i data-lucide="eye" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <p class="text-xs" style="color:var(--text-muted)">Min 8 chars, 1 uppercase, 1 number.</p>
+            <p id="err-pw" class="text-xs text-red-500 hidden"></p>
+          </div>
+          <div class="space-y-1">
+            <label class="text-sm font-medium" style="color:var(--text-primary)">Confirm Password <span class="text-red-500">*</span></label>
+            <div class="input-icon relative">
+              <i data-lucide="lock" class="icon w-4 h-4"></i>
+              <input id="f-pw2" type="password" class="input" style="padding-right:2.5rem" placeholder="••••••••" required/>
+              <button type="button" onclick="togglePw('f-pw2')"
+                class="absolute right-3 top-1/2 -translate-y-1/2" style="color:#9ca3af;background:none;border:none;cursor:pointer">
+                <i data-lucide="eye" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <p id="err-pw2" class="text-xs text-red-500 hidden"></p>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary w-full justify-center py-3 text-base mt-2" id="btn-submit">
+          Register <i data-lucide="arrow-right" class="w-5 h-5"></i>
+        </button>
+      </form>
+
+      <p class="text-center text-sm mt-5" style="color:var(--text-secondary)">
+        Already have an account?
+        <a href="/login" class="font-semibold hover:underline" style="color:var(--rp)">Log in here</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePw(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+  lucide.createIcons();
+}
+
+document.getElementById('f-role').addEventListener('change', function() {
+  const custom = document.getElementById('f-custom-role');
+  custom.classList.toggle('hidden', this.value !== 'Other');
+  if (this.value !== 'Other') custom.value = '';
+});
+
+document.getElementById('signup-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  clearErrors();
+
+  // Collect
+  const titleEl = document.querySelector('input[name="title"]:checked');
+  const title   = titleEl?.value ?? '';
+  const name    = document.getElementById('f-name').value.trim();
+  const email   = document.getElementById('f-email').value.trim();
+  const gender  = document.getElementById('f-gender').value;
+  const roleVal = document.getElementById('f-role').value;
+  const prof_role = roleVal === 'Other'
+    ? document.getElementById('f-custom-role').value.trim()
+    : roleVal;
+  const pw  = document.getElementById('f-pw').value;
+  const pw2 = document.getElementById('f-pw2').value;
+
+  // Validate
+  let ok = true;
+  if (!title)    { showFieldErr('err-title', 'Title is required'); ok=false; }
+  if (!name)     { showFieldErr('err-name',  'Name is required');  ok=false; }
+  if (!gender)   { showFieldErr('err-gender','Gender is required'); ok=false; }
+  if (!roleVal)  { showFieldErr('err-role',  'Professional role is required'); ok=false; }
+
+  // Email
+  const [local, domain] = email.split('@');
+  if (!domain) { showFieldErr('err-email','Invalid email format'); ok=false; }
+  else {
+    const common = ['gmail.com','hotmail.com','yahoo.com','outlook.com','icloud.com','live.com'];
+    const validDomain = common.includes(domain.toLowerCase())
+      || domain.endsWith('.edu.sa') || domain.endsWith('.gov.sa')
+      || domain.endsWith('.edu')    || domain.endsWith('.org');
+    if (!validDomain) { showFieldErr('err-email','Invalid email format, invalid domain name or institution name'); ok=false; }
+  }
+  if (pw.length < 8)          { showFieldErr('err-pw','Password must be at least 8 characters'); ok=false; }
+  else if (!/[A-Z]/.test(pw)) { showFieldErr('err-pw','Password must contain at least one uppercase letter'); ok=false; }
+  else if (!/[0-9]/.test(pw)) { showFieldErr('err-pw','Password must contain at least one number'); ok=false; }
+  if (pw !== pw2)              { showFieldErr('err-pw2','Passwords do not match'); ok=false; }
+  if (!ok) return;
+
+  const btn = document.getElementById('btn-submit');
+  btn.innerHTML = 'Creating Account… <i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i>';
+  lucide.createIcons();
+
+  const full_name = title ? `${title}. ${name}` : name;
+  try {
+    await api('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ full_name, email, password: pw, title, gender, professional_role: prof_role }),
+    });
+    showModal(`
+      <div class="text-center space-y-4">
+        <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+          <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+        </div>
+        <h3 class="font-heading text-xl font-bold">Registration Successful</h3>
+        <p style="color:var(--text-secondary)">Your account has been created. You can now log in.</p>
+        <a href="/login" class="btn-primary w-full justify-center">Go to Login</a>
+      </div>`);
+    lucide.createIcons();
+  } catch(err) {
+    document.getElementById('alert-form').textContent = err.message;
+    document.getElementById('alert-form').classList.remove('hidden');
+    btn.innerHTML = 'Register <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+    lucide.createIcons();
+  }
+});
+
+function showFieldErr(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+}
+function clearErrors() {
+  document.querySelectorAll('[id^="err-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById('alert-form').classList.add('hidden');
+}
+
+lucide.createIcons();
+</script>
+{% endblock %}

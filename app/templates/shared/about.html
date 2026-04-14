@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}About – Raha{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-8 py-16 space-y-16">
+  <section class="text-center space-y-5">
+    <h1 class="font-heading text-5xl font-bold tracking-tight" style="color:var(--text-primary)">
+      About <span style="color:var(--rp)">Raha</span>
+    </h1>
+    <p class="text-xl max-w-2xl mx-auto" style="color:var(--text-secondary)">
+      AI-powered periodontal analysis platform built for dental researchers, clinicians, and biomedical scientists who need fast, reliable assessment of micro-CT scans.
+    </p>
+    <div class="flex justify-center gap-4">
+      <a href="/signup" class="btn-primary" style="font-size:1.1rem;padding:.8rem 2rem">Get Started <i data-lucide="arrow-right" class="w-5 h-5"></i></a>
+      <a href="/contact" class="btn-outline" style="font-size:1.1rem;padding:.8rem 2rem">Contact Us</a>
+    </div>
+  </section>
+  <div class="card p-10 space-y-4">
+    <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Our Mission</h2>
+    <p class="leading-relaxed" style="color:var(--text-secondary)">Periodontal disease affects nearly half the global adult population, yet diagnosis often relies on manual inspection of complex imaging data. Raha bridges the gap between cutting-edge AI segmentation research and practical clinical tooling — making bone-loss quantification, inflammation scoring, and lesion mapping accessible to every researcher.</p>
+    <p class="text-sm" style="color:var(--text-muted)">IAU Research Project 2025–2026. IRB-2020-02-300.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-6">
+    {% for icon, title, body in [
+      ('upload-cloud','Upload','Drag and drop micro-CT scans. TIFF, BMP, PNG supported — no special conversion needed.'),
+      ('cpu','Analyze','Our deep-learning CNN and 3D U-Net model segments the scan, detects bone loss regions, and computes BV/TV ratio.'),
+      ('file-text','Report','Review structured results with annotated metrics and severity classification for each scan.'),
+    ] %}
+    <div class="card p-7 space-y-3 text-center">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center mx-auto" style="background:var(--rp10)">
+        <i data-lucide="{{ icon }}" class="w-6 h-6" style="color:var(--rp)"></i>
+      </div>
+      <h3 class="font-heading font-bold text-lg" style="color:var(--text-primary)">{{ title }}</h3>
+      <p class="text-sm" style="color:var(--text-secondary)">{{ body }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script>lucide.createIcons();</script>{% endblock %}

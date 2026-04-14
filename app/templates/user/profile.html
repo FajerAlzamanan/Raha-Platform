@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Profile – Raha{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-8 py-10 space-y-8">
+  <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">My Profile</h1>
+  <div class="card p-8 space-y-6">
+    <div class="flex items-center gap-5">
+      <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white"
+           style="background:linear-gradient(135deg,var(--rp),var(--rs))" id="avatar">?</div>
+      <div>
+        <p class="font-heading text-xl font-bold" id="d-name" style="color:var(--text-primary)">—</p>
+        <p class="text-sm font-mono" id="d-email" style="color:var(--text-secondary)">—</p>
+        <span class="badge badge-researcher mt-1" id="d-role">—</span>
+      </div>
+    </div>
+    <hr style="border-color:var(--border-subtle)">
+
+    <!-- View -->
+    <div id="view-mode" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div><p style="color:var(--text-muted)" class="mb-1">Professional Role</p><p class="font-semibold" id="d-role2" style="color:var(--text-primary)">—</p></div>
+        <div><p style="color:var(--text-muted)" class="mb-1">Gender</p><p class="font-semibold" id="d-gender" style="color:var(--text-primary)">—</p></div>
+        <div><p style="color:var(--text-muted)" class="mb-1">Member Since</p><p class="font-semibold" id="d-joined" style="color:var(--text-primary)">—</p></div>
+      </div>
+      <button onclick="toggleEdit(true)" class="btn-primary"><i data-lucide="pen-line" class="w-4 h-4"></i> Edit Profile</button>
+    </div>
+
+    <!-- Edit -->
+    <form id="edit-mode" class="hidden space-y-4" onsubmit="saveProfile(event)">
+      <div class="grid grid-cols-3 gap-3">
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Title</label>
+          <select id="e-title" class="input">
+            <option value="">—</option>
+            <option>Dr</option><option>Ms</option><option>Mr</option><option>Mrs</option><option>Prof</option>
+          </select>
+        </div>
+        <div class="col-span-2 space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Full Name</label>
+          <input id="e-name" class="input" required/>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <label class="text-sm font-medium" style="color:var(--text-primary)">Professional Role</label>
+        <select id="e-profrole" class="input">
+          <option value="">Select role</option>
+          <option>Biomedical Researcher</option><option>Dental Clinician</option>
+          <option>AI Developer</option><option>Academic Supervisor</option>
+          <option>Student</option><option>Researcher</option><option>Other</option>
+        </select>
+      </div>
+      <div class="space-y-1">
+        <label class="text-sm font-medium" style="color:var(--text-primary)">Gender</label>
+        <select id="e-gender" class="input">
+          <option value="">—</option><option>Male</option><option>Female</option>
+        </select>
+      </div>
+      <hr style="border-color:var(--border-subtle)">
+      <p class="text-sm font-semibold" style="color:var(--text-primary)">Change Password <span style="color:var(--text-muted);font-weight:400">(leave blank to keep current)</span></p>
+      <div class="input-icon relative">
+        <i data-lucide="lock" class="icon w-4 h-4"></i>
+        <input id="e-pw" type="password" class="input" placeholder="New password" style="padding-right:2.5rem"/>
+        <button type="button" onclick="togglePw('e-pw')" class="absolute right-3 top-1/2 -translate-y-1/2" style="color:#9ca3af;background:none;border:none;cursor:pointer"><i data-lucide="eye" class="w-4 h-4"></i></button>
+      </div>
+      <div id="edit-alert" class="hidden"></div>
+      <div class="flex gap-3">
+        <button type="submit" class="btn-primary"><i data-lucide="check" class="w-4 h-4"></i> Save Changes</button>
+        <button type="button" onclick="toggleEdit(false)" class="btn-outline">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+if (!Auth.user()) window.location.href = '/login';
+let profileData = {};
+async function loadProfile() {
+  try {
+    profileData = await api('/api/user/me');
+    render();
+  } catch(e) { toast(e.message,'err'); }
+}
+function render() {
+  const p = profileData;
+  document.getElementById('d-name').textContent   = p.full_name ?? '—';
+  document.getElementById('d-email').textContent  = p.email ?? '—';
+  document.getElementById('d-role').textContent   = p.role ?? '—';
+  document.getElementById('d-role2').textContent  = p.professional_role || 'Not specified';
+  document.getElementById('d-gender').textContent = p.gender || 'Not specified';
+  document.getElementById('d-joined').textContent = fmtDate(p.created_at);
+  document.getElementById('avatar').textContent   = (p.full_name?.[0] ?? '?').toUpperCase();
+}
+function toggleEdit(show) {
+  document.getElementById('view-mode').classList.toggle('hidden', show);
+  document.getElementById('edit-mode').classList.toggle('hidden', !show);
+  if (show) {
+    const titles = ['Dr','Ms','Mr','Mrs','Prof'];
+    const parts = (profileData.full_name ?? '').split(' ');
+    const hasTitle = titles.includes(parts[0]);
+    document.getElementById('e-title').value    = hasTitle ? parts[0] : '';
+    document.getElementById('e-name').value     = hasTitle ? parts.slice(1).join(' ') : (profileData.full_name ?? '');
+    document.getElementById('e-profrole').value = profileData.professional_role ?? '';
+    document.getElementById('e-gender').value   = profileData.gender ?? '';
+  }
+  lucide.createIcons();
+}
+async function saveProfile(e) {
+  e.preventDefault();
+  const title = document.getElementById('e-title').value;
+  const name  = document.getElementById('e-name').value.trim();
+  const full_name = title ? `${title}. ${name}` : name;
+  const professional_role = document.getElementById('e-profrole').value;
+  const gender = document.getElementById('e-gender').value;
+  const new_password = document.getElementById('e-pw').value || undefined;
+  try {
+    await api('/api/user/me', { method:'PUT', body:JSON.stringify({full_name,professional_role,gender,new_password}) });
+    profileData = { ...profileData, full_name, professional_role, gender };
+    render(); toggleEdit(false); toast('Profile updated!');
+  } catch(err) {
+    const al = document.getElementById('edit-alert');
+    al.textContent = err.message; al.className = 'alert-error'; al.classList.remove('hidden');
+  }
+}
+function togglePw(id) { const el = document.getElementById(id); el.type = el.type==='password'?'text':'password'; }
+loadProfile(); lucide.createIcons();
+</script>
+{% endblock %}

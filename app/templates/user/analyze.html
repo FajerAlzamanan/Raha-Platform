@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Analyze – Raha{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-8 py-10 space-y-8">
+  <div>
+    <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Start Analysis</h1>
+    <p style="color:var(--text-secondary)">Upload micro-CT images for AI-driven periodontal assessment.</p>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-8">
+    <!-- Left: upload -->
+    <div class="space-y-6">
+      <div class="card p-6 space-y-5">
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-primary)">Batch / Volume Title</label>
+          <input id="vol-title" class="input" placeholder="e.g. Patient Case #42"/>
+        </div>
+
+        <!-- Drop zone -->
+        <div id="drop-zone" class="upload-zone"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"
+          onclick="document.getElementById('file-input').click()">
+          <i data-lucide="upload-cloud" class="w-12 h-12 mx-auto mb-3" style="color:var(--text-muted)"></i>
+          <p class="font-semibold text-lg" style="color:var(--text-primary)">Drop files here or click to browse</p>
+          <p class="text-sm mt-1" style="color:var(--text-muted)">TIFF, BMP, PNG, JPG, IIF — up to 50 MB</p>
+          <input id="file-input" type="file" accept="image/*,.tif,.tiff" multiple class="hidden" onchange="onFilesSelected(this.files)"/>
+        </div>
+
+        <!-- Thumbnails -->
+        <div id="thumb-grid" class="hidden grid grid-cols-3 gap-3"></div>
+
+        <!-- Alert -->
+        <div id="alert-box" class="hidden"></div>
+
+        <!-- Actions -->
+        <div class="flex gap-3">
+          <button onclick="startAnalysis()" class="btn-primary" id="btn-analyze">
+            <i data-lucide="cpu" class="w-4 h-4"></i> Start Analysis
+          </button>
+          <button onclick="clearAll()" class="btn-outline">
+            <i data-lucide="x" class="w-4 h-4"></i> Clear
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: progress + results -->
+    <div class="space-y-6">
+      <!-- Progress card -->
+      <div id="progress-card" class="card p-6 space-y-4 hidden">
+        <h3 class="font-heading font-semibold" style="color:var(--text-primary)">Analysis Progress</h3>
+        <div class="progress-track"><div class="progress-fill" id="p-bar" style="width:0%"></div></div>
+        <div class="flex justify-between text-sm">
+          <span id="p-text" style="color:var(--text-secondary)">Starting…</span>
+          <span id="p-pct" class="font-semibold" style="color:var(--rp)">0%</span>
+        </div>
+        <div class="flex items-center justify-center py-4" id="spinner-area">
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+      <!-- Results preview -->
+      <div id="results-card" class="card p-6 space-y-4 hidden">
+        <h3 class="font-heading font-semibold" style="color:var(--text-primary)">Results Preview</h3>
+        <div id="results-list" class="space-y-3"></div>
+        <a href="/results" class="btn-primary w-full justify-center">
+          <i data-lucide="arrow-right" class="w-4 h-4"></i> View Full Results
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!Auth.user()) window.location.href = '/login';
+
+let files = [];
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('drag-over');
+}
+function onDragLeave() {
+  document.getElementById('drop-zone').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  onDragLeave();
+  onFilesSelected(e.dataTransfer.files);
+}
+function onFilesSelected(list) {
+  files = Array.from(list);
+  renderThumbs();
+}
+
+function renderThumbs() {
+  const grid = document.getElementById('thumb-grid');
+  grid.innerHTML = '';
+  grid.classList.toggle('hidden', files.length === 0);
+  files.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'rounded-lg overflow-hidden border' ;
+    div.style.borderColor = 'var(--border-subtle)';
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (['png','jpg','jpeg','bmp'].includes(ext)) {
+      const url = URL.createObjectURL(f);
+      div.innerHTML = `<img src="${url}" class="w-full h-24 object-cover"/><p class="text-xs px-2 py-1 truncate font-mono" style="color:var(--text-muted)">${esc(f.name)}</p>`;
+    } else {
+      div.innerHTML = `<div class="w-full h-24 flex items-center justify-center" style="background:var(--bg-surface)"><i data-lucide="file-scan" class="w-8 h-8" style="color:var(--text-muted)"></i></div><p class="text-xs px-2 py-1 truncate font-mono" style="color:var(--text-muted)">${esc(f.name)}</p>`;
+    }
+    grid.appendChild(div);
+  });
+  lucide.createIcons();
+}
+
+async function startAnalysis() {
+  if (!files.length) { showAlert('Please select at least one file.','error'); return; }
+  const title = document.getElementById('vol-title').value.trim() || `Batch-${Date.now()}`;
+  document.getElementById('progress-card').classList.remove('hidden');
+  document.getElementById('results-card').classList.add('hidden');
+  setP(0,'Uploading files…');
+
+  const resultsList = document.getElementById('results-list');
+  resultsList.innerHTML = '';
+
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      setP(Math.round((i/files.length)*55), `Uploading ${f.name}…`);
+      const form = new FormData();
+      form.append('scan', f);
+      form.append('title', title);
+      const res = await fetch('/api/scans/upload', {
+        method:'POST', headers:{'Authorization':`Bearer ${Auth.token()}`}, body:form
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+      // Result card
+      const r = data.results;
+      const bclass = r.severity === 'severe' ? 'badge-severe' : r.severity === 'moderate' ? 'badge-moderate' : 'badge-mild';
+      const el = document.createElement('div');
+      el.className = 'card p-4 space-y-2';
+      el.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs truncate" style="color:var(--text-secondary)">${esc(f.name)}</span>
+          <span class="badge ${bclass}">${r.severity}</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-xs text-center">
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold" style="color:var(--rp)">${r.BV_mm3}</p><p style="color:var(--text-muted)">BV mm³</p></div>
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold" style="color:var(--rp)">${r.TV_mm3}</p><p style="color:var(--text-muted)">TV mm³</p></div>
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold" style="color:var(--rp)">${r.BV_TV}</p><p style="color:var(--text-muted)">BV/TV</p></div>
+        </div>`;
+      resultsList.appendChild(el);
+    }
+
+    setP(80,'Running segmentation…'); await sleep(700);
+    setP(100,'Analysis complete!');
+    document.getElementById('spinner-area').innerHTML = `<i data-lucide="check-circle" class="w-10 h-10" style="color:#22c55e"></i>`;
+    document.getElementById('results-card').classList.remove('hidden');
+    lucide.createIcons();
+    showAlert('Analysis complete! Results saved.','success');
+  } catch(err) {
+    showAlert(err.message,'error');
+    setP(0,'');
+    document.getElementById('progress-card').classList.add('hidden');
+  }
+}
+
+function clearAll() {
+  files = [];
+  document.getElementById('thumb-grid').innerHTML = '';
+  document.getElementById('thumb-grid').classList.add('hidden');
+  document.getElementById('progress-card').classList.add('hidden');
+  document.getElementById('results-card').classList.add('hidden');
+  document.getElementById('vol-title').value = '';
+  document.getElementById('alert-box').classList.add('hidden');
+  document.getElementById('spinner-area').innerHTML = '<div class="spinner"></div>';
+}
+
+function setP(pct, text) {
+  document.getElementById('p-bar').style.width  = pct + '%';
+  document.getElementById('p-pct').textContent  = pct + '%';
+  document.getElementById('p-text').textContent = text;
+}
+function showAlert(msg, type) {
+  const el = document.getElementById('alert-box');
+  el.textContent = msg;
+  el.className = type === 'error' ? 'alert-error' : 'alert-success';
+  el.classList.remove('hidden');
+}
+function sleep(ms) { return new Promise(r => setTimeout(r,ms)); }
+
+lucide.createIcons();
+</script>
+{% endblock %}
