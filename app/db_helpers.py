@@ -91,11 +91,11 @@ def get_system_logs(limit=100):
 
 # ─── Analysis Helpers ───────────────────────────
 
-def save_results(scan_id, BV, TV, BV_TV, severity):
+def save_results(scan_id, BV, TV, BV_TV, severity, diagnosis=None):
     with get_conn() as conn:
         conn.execute(
-            'INSERT INTO Results (scan_id,BV_mm3,TV_mm3,BV_TV,severity) VALUES (?,?,?,?,?)',
-            (scan_id, BV, TV, BV_TV, severity)
+            'INSERT INTO Results (scan_id,BV_mm3,TV_mm3,BV_TV,severity,diagnosis) VALUES (?,?,?,?,?,?)',
+            (scan_id, BV, TV, BV_TV, severity, diagnosis)
         )
 
 def get_scan_filename(scan_id):

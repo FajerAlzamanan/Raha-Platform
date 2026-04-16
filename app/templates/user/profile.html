@@ -1,47 +1,149 @@
 {% extends "base.html" %}
-{% block title %}Profile – Raha{% endblock %}
+{% block title %}My Profile – Raha{% endblock %}
+{% block head %}
+<style>
+  .profile-stat {
+    display: flex; flex-direction: column; align-items: center; gap: .2rem;
+    padding: 1rem 1.5rem; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--bg-surface);
+    flex: 1;
+  }
+  .profile-stat-value { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--rp); }
+  .profile-stat-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .info-row { display: flex; flex-direction: column; gap: .2rem; }
+  .info-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+  .info-value { font-size: .95rem; font-weight: 500; color: var(--text-primary); }
+  .section-title { font-family: 'Outfit', sans-serif; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: .75rem; }
+
+  /* Avatar upload overlay */
+  .avatar-wrap { position: relative; width: 4rem; height: 4rem; flex-shrink: 0; }
+  .avatar-wrap .avatar-overlay {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: rgba(0,0,0,.45); display: none;
+    align-items: center; justify-content: center; cursor: pointer;
+  }
+  .avatar-wrap:hover .avatar-overlay { display: flex; }
+
+  /* Danger button */
+  .btn-danger {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .6rem 1.4rem; border-radius: 9999px;
+    font-weight: 600; font-size: .9rem; cursor: pointer;
+    background: transparent; color: #dc2626;
+    border: 1.5px solid #dc2626;
+    transition: all .2s;
+  }
+  .btn-danger:hover { background: rgba(220,38,38,.08); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-2xl mx-auto px-8 py-10 space-y-8">
-  <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">My Profile</h1>
-  <div class="card p-8 space-y-6">
+<div class="max-w-3xl mx-auto px-8 py-10 space-y-6">
+
+  <!-- Page heading -->
+  <div>
+    <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">My Profile</h1>
+    <p style="color:var(--text-secondary)">Manage your account information and preferences.</p>
+  </div>
+
+  <!-- Profile header card -->
+  <div class="card p-6">
     <div class="flex items-center gap-5">
-      <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white"
-           style="background:linear-gradient(135deg,var(--rp),var(--rs))" id="avatar">?</div>
-      <div>
-        <p class="font-heading text-xl font-bold" id="d-name" style="color:var(--text-primary)">—</p>
-        <p class="text-sm font-mono" id="d-email" style="color:var(--text-secondary)">—</p>
-        <span class="badge badge-researcher mt-1" id="d-role">—</span>
+      <div class="avatar-wrap">
+        <div id="avatar" class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white"
+             style="background:linear-gradient(135deg,var(--rp),var(--rs));width:4rem;height:4rem">?</div>
+        <!-- Camera overlay — only active in edit mode -->
+        <div class="avatar-overlay" id="avatar-overlay" onclick="document.getElementById('avatar-file').click()" title="Change photo">
+          <i data-lucide="camera" style="width:18px;height:18px;color:white"></i>
+        </div>
+        <input type="file" id="avatar-file" accept="image/*" class="hidden" onchange="uploadAvatar(this)">
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <p id="d-name" class="font-heading text-xl font-bold truncate" style="color:var(--text-primary)">—</p>
+        <p id="d-email" class="text-sm font-mono" style="color:var(--text-secondary)">—</p>
+        <div class="flex items-center gap-2 mt-1">
+          <span id="d-role-badge" class="badge badge-researcher">researcher</span>
+          <span id="d-profrole-badge" class="text-xs" style="color:var(--text-muted)"></span>
+        </div>
+      </div>
+      <button onclick="toggleEdit(true)" id="edit-btn" class="btn-primary flex-shrink-0"
+              style="padding:.5rem 1.1rem;font-size:.85rem">
+        <i data-lucide="pen-line" class="w-4 h-4"></i> Edit Profile
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats row -->
+  <div style="display:flex;gap:1rem">
+    <div class="profile-stat">
+      <span id="stat-scans" class="profile-stat-value">—</span>
+      <span class="profile-stat-label">Total Scans</span>
+    </div>
+    <div class="profile-stat">
+      <span id="stat-joined" class="profile-stat-value" style="font-size:1rem;text-align:center">—</span>
+      <span class="profile-stat-label">Member Since</span>
+    </div>
+    <div class="profile-stat">
+      <span id="stat-role" class="profile-stat-value" style="font-size:1rem;text-transform:capitalize">—</span>
+      <span class="profile-stat-label">Account Type</span>
+    </div>
+  </div>
+
+  <!-- Info / Edit card -->
+  <div class="card p-6">
+
+    <!-- ── View mode ── -->
+    <div id="view-mode">
+      <p class="section-title">Account Details</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+        <div class="info-row">
+          <span class="info-label">Full Name</span>
+          <span id="v-name" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Email Address</span>
+          <span id="v-email" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Professional Role</span>
+          <span id="v-profrole" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Institution</span>
+          <span id="v-institution" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Gender</span>
+          <span id="v-gender" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Member Since</span>
+          <span id="v-joined" class="info-value">—</span>
+        </div>
       </div>
     </div>
-    <hr style="border-color:var(--border-subtle)">
 
-    <!-- View -->
-    <div id="view-mode" class="space-y-4">
-      <div class="grid grid-cols-2 gap-4 text-sm">
-        <div><p style="color:var(--text-muted)" class="mb-1">Professional Role</p><p class="font-semibold" id="d-role2" style="color:var(--text-primary)">—</p></div>
-        <div><p style="color:var(--text-muted)" class="mb-1">Gender</p><p class="font-semibold" id="d-gender" style="color:var(--text-primary)">—</p></div>
-        <div><p style="color:var(--text-muted)" class="mb-1">Member Since</p><p class="font-semibold" id="d-joined" style="color:var(--text-primary)">—</p></div>
-      </div>
-      <button onclick="toggleEdit(true)" class="btn-primary"><i data-lucide="pen-line" class="w-4 h-4"></i> Edit Profile</button>
-    </div>
+    <!-- ── Edit mode ── -->
+    <form id="edit-mode" class="hidden space-y-5" onsubmit="saveProfile(event)">
+      <p class="section-title">Edit Profile</p>
 
-    <!-- Edit -->
-    <form id="edit-mode" class="hidden space-y-4" onsubmit="saveProfile(event)">
-      <div class="grid grid-cols-3 gap-3">
-        <div class="space-y-1">
-          <label class="text-sm font-medium" style="color:var(--text-primary)">Title</label>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:.75rem;align-items:end">
+        <div class="space-y-1" style="width:6rem">
+          <label class="text-sm font-medium" style="color:var(--text-secondary)">Title</label>
           <select id="e-title" class="input">
             <option value="">—</option>
             <option>Dr</option><option>Ms</option><option>Mr</option><option>Mrs</option><option>Prof</option>
           </select>
         </div>
-        <div class="col-span-2 space-y-1">
-          <label class="text-sm font-medium" style="color:var(--text-primary)">Full Name</label>
-          <input id="e-name" class="input" required/>
+        <div class="space-y-1">
+          <label class="text-sm font-medium" style="color:var(--text-secondary)">Full Name</label>
+          <input id="e-name" class="input" placeholder="Your full name" required/>
         </div>
       </div>
+
       <div class="space-y-1">
-        <label class="text-sm font-medium" style="color:var(--text-primary)">Professional Role</label>
+        <label class="text-sm font-medium" style="color:var(--text-secondary)">Professional Role</label>
         <select id="e-profrole" class="input">
           <option value="">Select role</option>
           <option>Biomedical Researcher</option><option>Dental Clinician</option>
@@ -49,80 +151,259 @@
           <option>Student</option><option>Researcher</option><option>Other</option>
         </select>
       </div>
+
       <div class="space-y-1">
-        <label class="text-sm font-medium" style="color:var(--text-primary)">Gender</label>
+        <label class="text-sm font-medium" style="color:var(--text-secondary)">Institution</label>
+        <input id="e-institution" class="input" placeholder="e.g. King Abdulaziz University"/>
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm font-medium" style="color:var(--text-secondary)">Gender</label>
         <select id="e-gender" class="input">
           <option value="">—</option><option>Male</option><option>Female</option>
         </select>
       </div>
+
       <hr style="border-color:var(--border-subtle)">
-      <p class="text-sm font-semibold" style="color:var(--text-primary)">Change Password <span style="color:var(--text-muted);font-weight:400">(leave blank to keep current)</span></p>
-      <div class="input-icon relative">
-        <i data-lucide="lock" class="icon w-4 h-4"></i>
-        <input id="e-pw" type="password" class="input" placeholder="New password" style="padding-right:2.5rem"/>
-        <button type="button" onclick="togglePw('e-pw')" class="absolute right-3 top-1/2 -translate-y-1/2" style="color:#9ca3af;background:none;border:none;cursor:pointer"><i data-lucide="eye" class="w-4 h-4"></i></button>
+
+      <!-- Password change with confirm -->
+      <div>
+        <p class="text-sm font-semibold" style="color:var(--text-primary);margin-bottom:.75rem">
+          Change Password
+          <span style="color:var(--text-muted);font-weight:400;font-size:.85rem"> — leave blank to keep current</span>
+        </p>
+        <div class="space-y-3">
+          <div class="input-icon relative">
+            <i data-lucide="lock" class="icon w-4 h-4"></i>
+            <input id="e-pw" type="password" class="input" placeholder="New password" style="padding-right:2.5rem"/>
+            <button type="button" onclick="togglePw('e-pw')"
+                    class="absolute right-3 top-1/2 -translate-y-1/2"
+                    style="color:#9ca3af;background:none;border:none;cursor:pointer">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="input-icon relative">
+            <i data-lucide="lock" class="icon w-4 h-4"></i>
+            <input id="e-pw-confirm" type="password" class="input" placeholder="Confirm new password" style="padding-right:2.5rem"/>
+            <button type="button" onclick="togglePw('e-pw-confirm')"
+                    class="absolute right-3 top-1/2 -translate-y-1/2"
+                    style="color:#9ca3af;background:none;border:none;cursor:pointer">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div id="pw-mismatch" class="alert-error hidden">Passwords do not match.</div>
+        </div>
       </div>
+
       <div id="edit-alert" class="hidden"></div>
-      <div class="flex gap-3">
+
+      <div class="flex gap-3 flex-wrap">
         <button type="submit" class="btn-primary"><i data-lucide="check" class="w-4 h-4"></i> Save Changes</button>
         <button type="button" onclick="toggleEdit(false)" class="btn-outline">Cancel</button>
+        <button type="button" onclick="confirmDelete()" class="btn-danger" style="margin-left:auto">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> Delete Account
+        </button>
       </div>
     </form>
+
+  </div>
+</div>
+
+<!-- ══ Confirm Delete Modal ══ -->
+<div id="deleteModal" class="fixed inset-0 z-50 flex items-center justify-center hidden"
+     style="background:rgba(0,0,0,0.5)" onclick="if(event.target===this)closeDeleteModal()">
+  <div class="card" style="width:100%;max-width:24rem;margin:1rem;padding:0;overflow:hidden">
+    <div style="padding:1.5rem 1.5rem 1rem">
+      <div class="flex items-center gap-3 mb-3">
+        <div style="width:2.5rem;height:2.5rem;border-radius:50%;background:rgba(220,38,38,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i data-lucide="trash-2" style="width:16px;height:16px;color:#dc2626"></i>
+        </div>
+        <h5 class="font-heading font-bold" style="color:var(--text-primary);font-size:1.05rem;margin:0">Delete Account</h5>
+      </div>
+      <p style="color:var(--text-secondary);font-size:.9rem;line-height:1.5">
+        This action is <strong style="color:var(--text-primary)">permanent and cannot be undone</strong>.
+        All your data, scans, and results will be removed.
+      </p>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:.75rem 1.5rem 1.25rem">
+      <button onclick="closeDeleteModal()" class="btn-outline" style="padding:.45rem 1.1rem;font-size:.85rem">Cancel</button>
+      <button onclick="deleteAccount()" class="btn-danger" style="padding:.45rem 1.1rem;font-size:.85rem;border-radius:9999px">
+        <i data-lucide="trash-2" class="w-4 h-4"></i> Yes, Delete
+      </button>
+    </div>
   </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
 if (!Auth.user()) window.location.href = '/login';
+
 let profileData = {};
+
 async function loadProfile() {
   try {
     profileData = await api('/api/user/me');
-    render();
-  } catch(e) { toast(e.message,'err'); }
+    renderView();
+    loadScanCount();
+  } catch(e) { toast(e.message, 'err'); }
 }
-function render() {
+
+async function loadScanCount() {
+  try {
+    const scans = await api('/api/scans/my-scans');
+    document.getElementById('stat-scans').textContent = scans.length;
+  } catch(_) {
+    document.getElementById('stat-scans').textContent = '—';
+  }
+}
+
+function fmtDateFull(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function renderView() {
   const p = profileData;
-  document.getElementById('d-name').textContent   = p.full_name ?? '—';
-  document.getElementById('d-email').textContent  = p.email ?? '—';
-  document.getElementById('d-role').textContent   = p.role ?? '—';
-  document.getElementById('d-role2').textContent  = p.professional_role || 'Not specified';
-  document.getElementById('d-gender').textContent = p.gender || 'Not specified';
-  document.getElementById('d-joined').textContent = fmtDate(p.created_at);
-  document.getElementById('avatar').textContent   = (p.full_name?.[0] ?? '?').toUpperCase();
+
+  // Header card
+  if (p.avatar_url) {
+    const av = document.getElementById('avatar');
+    av.style.background = 'none';
+    av.textContent = '';
+    av.style.backgroundImage = `url(${p.avatar_url})`;
+    av.style.backgroundSize = 'cover';
+    av.style.backgroundPosition = 'center';
+  } else {
+    document.getElementById('avatar').textContent = (p.full_name?.[0] ?? '?').toUpperCase();
+  }
+  document.getElementById('d-name').textContent  = p.full_name ?? '—';
+  document.getElementById('d-email').textContent = p.email ?? '—';
+  const roleBadge = document.getElementById('d-role-badge');
+  roleBadge.textContent = p.role ?? '—';
+  roleBadge.className   = `badge badge-${p.role ?? 'pending'}`;
+  document.getElementById('d-profrole-badge').textContent = p.professional_role ? `· ${p.professional_role}` : '';
+
+  // Stats
+  document.getElementById('stat-joined').textContent = fmtDateFull(p.created_at);
+  document.getElementById('stat-role').textContent   = p.role ?? '—';
+
+  // Info grid
+  document.getElementById('v-name').textContent        = p.full_name || '—';
+  document.getElementById('v-email').textContent       = p.email || '—';
+  document.getElementById('v-profrole').textContent    = p.professional_role || 'Not specified';
+  document.getElementById('v-institution').textContent = p.institution || 'Not specified';
+  document.getElementById('v-gender').textContent      = p.gender || 'Not specified';
+  document.getElementById('v-joined').textContent      = fmtDateFull(p.created_at);
+
+  lucide.createIcons();
 }
+
 function toggleEdit(show) {
   document.getElementById('view-mode').classList.toggle('hidden', show);
   document.getElementById('edit-mode').classList.toggle('hidden', !show);
+  document.getElementById('edit-btn').classList.toggle('hidden', show);
+
+  // Show/hide camera overlay
+  document.getElementById('avatar-overlay').style.display = show ? '' : 'none';
+
   if (show) {
-    const titles = ['Dr','Ms','Mr','Mrs','Prof'];
+    const titles = ['Dr', 'Ms', 'Mr', 'Mrs', 'Prof'];
     const parts = (profileData.full_name ?? '').split(' ');
     const hasTitle = titles.includes(parts[0]);
-    document.getElementById('e-title').value    = hasTitle ? parts[0] : '';
-    document.getElementById('e-name').value     = hasTitle ? parts.slice(1).join(' ') : (profileData.full_name ?? '');
-    document.getElementById('e-profrole').value = profileData.professional_role ?? '';
-    document.getElementById('e-gender').value   = profileData.gender ?? '';
+    document.getElementById('e-title').value       = hasTitle ? parts[0] : '';
+    document.getElementById('e-name').value        = hasTitle ? parts.slice(1).join(' ') : (profileData.full_name ?? '');
+    document.getElementById('e-profrole').value    = profileData.professional_role ?? '';
+    document.getElementById('e-institution').value = profileData.institution ?? '';
+    document.getElementById('e-gender').value      = profileData.gender ?? '';
+    document.getElementById('e-pw').value          = '';
+    document.getElementById('e-pw-confirm').value  = '';
+    document.getElementById('pw-mismatch').classList.add('hidden');
+    document.getElementById('edit-alert').classList.add('hidden');
   }
   lucide.createIcons();
 }
+
 async function saveProfile(e) {
   e.preventDefault();
+
+  const pw        = document.getElementById('e-pw').value;
+  const pwConfirm = document.getElementById('e-pw-confirm').value;
+  const mismatchEl = document.getElementById('pw-mismatch');
+
+  // Password match validation
+  if (pw && pw !== pwConfirm) {
+    mismatchEl.classList.remove('hidden');
+    return;
+  }
+  mismatchEl.classList.add('hidden');
+
   const title = document.getElementById('e-title').value;
   const name  = document.getElementById('e-name').value.trim();
-  const full_name = title ? `${title}. ${name}` : name;
+  const full_name       = title ? `${title} ${name}` : name;
   const professional_role = document.getElementById('e-profrole').value;
-  const gender = document.getElementById('e-gender').value;
-  const new_password = document.getElementById('e-pw').value || undefined;
+  const institution       = document.getElementById('e-institution').value.trim();
+  const gender            = document.getElementById('e-gender').value;
+  const new_password      = pw || undefined;
+
   try {
-    await api('/api/user/me', { method:'PUT', body:JSON.stringify({full_name,professional_role,gender,new_password}) });
-    profileData = { ...profileData, full_name, professional_role, gender };
-    render(); toggleEdit(false); toast('Profile updated!');
+    await api('/api/user/me', {
+      method: 'PUT',
+      body: JSON.stringify({ full_name, professional_role, institution, gender, new_password }),
+    });
+    profileData = { ...profileData, full_name, professional_role, institution, gender };
+    renderView();
+    toggleEdit(false);
+    toast('Profile updated successfully!');
   } catch(err) {
     const al = document.getElementById('edit-alert');
-    al.textContent = err.message; al.className = 'alert-error'; al.classList.remove('hidden');
+    al.textContent = err.message;
+    al.className = 'alert-error';
+    al.classList.remove('hidden');
   }
 }
-function togglePw(id) { const el = document.getElementById(id); el.type = el.type==='password'?'text':'password'; }
-loadProfile(); lucide.createIcons();
+
+async function uploadAvatar(input) {
+  if (!input.files.length) return;
+  const form = new FormData();
+  form.append('file', input.files[0]);
+  try {
+    const res = await fetch('/api/user/me/avatar', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${Auth.token()}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || 'Upload failed');
+    profileData.avatar_url = data.avatar_url;
+    renderView();
+    toast('Profile photo updated!');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function confirmDelete() {
+  document.getElementById('deleteModal').classList.remove('hidden');
+  lucide.createIcons();
+}
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.add('hidden');
+}
+async function deleteAccount() {
+  try {
+    await api('/api/user/me', { method: 'DELETE' });
+    Auth.clear();
+    closeDeleteModal();
+    toast('Account deleted. Redirecting…');
+    setTimeout(() => window.location.href = '/login', 1500);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function togglePw(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+loadProfile();
+lucide.createIcons();
 </script>
 {% endblock %}

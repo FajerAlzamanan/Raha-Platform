@@ -92,5 +92,9 @@ async def admin_logs(request: Request):
 async def admin_issues(request: Request):
     return templates.TemplateResponse("admin/issues.html", {"request": request})
 
+@app.get("/scan/{scan_id}")
+async def scan_detail_page(request: Request, scan_id: int):
+    return templates.TemplateResponse("user/scan_detail.html", {"request": request, "scan_id": scan_id})
+
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=4000, reload=True)

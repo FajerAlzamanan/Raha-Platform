@@ -16,9 +16,17 @@ def create_tables():
             gender TEXT,
             title TEXT,
             professional_role TEXT,
+            institution TEXT,
+            avatar_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Graceful migrations for existing databases
+    for col, definition in [('institution', 'TEXT'), ('avatar_url', 'TEXT')]:
+        try:
+            cursor.execute(f'ALTER TABLE Users ADD COLUMN {col} {definition}')
+        except Exception:
+            pass  # Column already exists
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Scans (
@@ -39,9 +47,15 @@ def create_tables():
             TV_mm3 REAL,
             BV_TV REAL,
             severity TEXT,
+            diagnosis TEXT,
             analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Migrate existing databases that pre-date the diagnosis column
+    try:
+        cursor.execute('ALTER TABLE Results ADD COLUMN diagnosis TEXT')
+    except Exception:
+        pass  # Column already exists
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Issues (

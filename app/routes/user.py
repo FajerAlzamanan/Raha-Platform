@@ -1,14 +1,18 @@
 """
-app/routes/user.py  –  /api/user/me
-Uses your team's helpers: get_user_by_id(), update_user()
+app/routes/user.py  –  /api/user/*
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+import shutil
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
-from app.db_helpers import get_user_by_id, update_user
+from app.db_helpers import get_user_by_id, update_user, get_conn
 from app.auth_utils import auth_required, hash_password, validate_password
 
 router = APIRouter()
+
+AVATAR_DIR = Path("app/static/uploads/avatars")
+AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ProfileUpdate(BaseModel):
@@ -16,6 +20,7 @@ class ProfileUpdate(BaseModel):
     title: str | None = None
     gender: str | None = None
     professional_role: str | None = None
+    institution: str | None = None
     new_password: str | None = None
 
 
@@ -24,18 +29,19 @@ def get_profile(user: dict = Depends(auth_required)):
     row = get_user_by_id(user["id"])
     if not row:
         raise HTTPException(404, "User not found")
-    # Remove password hash before returning
     row.pop("password_hash", None)
     return row
 
 
 @router.put("/me")
 def update_profile(body: ProfileUpdate, user: dict = Depends(auth_required)):
+    # Only update profile fields — never touch the system `role` column here
     fields = {
-        "full_name": body.full_name,
-        "title": body.title,
-        "gender": body.gender,
+        "full_name":        body.full_name,
+        "title":            body.title,
+        "gender":           body.gender,
         "professional_role": body.professional_role,
+        "institution":      body.institution,
     }
 
     if body.new_password:
@@ -46,3 +52,34 @@ def update_profile(body: ProfileUpdate, user: dict = Depends(auth_required)):
 
     update_user(user["id"], fields)
     return {"message": "Profile updated"}
+
+
+@router.post("/me/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user: dict = Depends(auth_required),
+):
+    # Validate MIME type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(400, "File must be an image")
+
+    suffix = Path(file.filename).suffix.lower() or ".jpg"
+    dest = AVATAR_DIR / f"user_{user['id']}{suffix}"
+    with dest.open("wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    avatar_url = f"/static/uploads/avatars/user_{user['id']}{suffix}"
+    update_user(user["id"], {"avatar_url": avatar_url})
+    return {"avatar_url": avatar_url}
+
+
+@router.delete("/me")
+def delete_account(user: dict = Depends(auth_required)):
+    with get_conn() as conn:
+        # Nullify foreign keys in dependent tables so rows are orphaned, not blocked
+        conn.execute("UPDATE Scans SET user_id=NULL WHERE user_id=?", (user["id"],))
+        conn.execute("UPDATE Issues SET user_id=NULL WHERE user_id=?", (user["id"],))
+        conn.execute("UPDATE SystemLogs SET user_id=NULL WHERE user_id=?", (user["id"],))
+        conn.execute("DELETE FROM PasswordResetTokens WHERE user_id=?", (user["id"],))
+        conn.execute("DELETE FROM Users WHERE id=?", (user["id"],))
+    return {"message": "Account deleted"}

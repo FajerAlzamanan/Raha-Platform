@@ -63,10 +63,15 @@ async def upload_scan(
     BV    = round(random.uniform(50, 200), 2)
     TV    = round(random.uniform(300, 600), 2)
     BV_TV = round(BV / TV, 4)
-    severity = "severe" if BV_TV < 0.2 else "moderate" if BV_TV < 0.35 else "mild"
+    if BV_TV > 0.40:
+        diagnosis = "Healthy"
+        severity  = None
+    else:
+        diagnosis = "Periodontitis"
+        severity  = "severe" if BV_TV < 0.2 else "moderate" if BV_TV < 0.35 else "mild"
 
-    save_results(scan_id, BV, TV, BV_TV, severity)
-    log_event(user["id"], "analysis", f"Analysis complete for scan {scan_id}: {severity}")
+    save_results(scan_id, BV, TV, BV_TV, severity, diagnosis)
+    log_event(user["id"], "analysis", f"Analysis complete for scan {scan_id}: {diagnosis} / {severity}")
     # ──────────────────────────────────────────────────────────────────
 
     return {
@@ -78,7 +83,37 @@ async def upload_scan(
             "BV_mm3": BV,
             "TV_mm3": TV,
             "BV_TV": BV_TV,
+            "diagnosis": diagnosis,
             "severity": severity,
+        },
+    }
+
+
+@router.get("/compare")
+def compare_scans(
+    baseline_id: int,
+    treatment_id: int,
+    user: dict = Depends(auth_required),
+):
+    baseline  = get_results_by_scan(baseline_id)
+    treatment = get_results_by_scan(treatment_id)
+    if not baseline:
+        raise HTTPException(404, f"No results found for baseline scan {baseline_id}")
+    if not treatment:
+        raise HTTPException(404, f"No results found for treatment scan {treatment_id}")
+
+    def delta(a, b):
+        if a is None or b is None:
+            return None
+        return round(b - a, 4)
+
+    return {
+        "baseline":  baseline,
+        "treatment": treatment,
+        "deltas": {
+            "BV_mm3": delta(baseline["BV_mm3"], treatment["BV_mm3"]),
+            "TV_mm3": delta(baseline["TV_mm3"], treatment["TV_mm3"]),
+            "BV_TV":  delta(baseline["BV_TV"],  treatment["BV_TV"]),
         },
     }
 

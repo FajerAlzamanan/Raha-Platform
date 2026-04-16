@@ -1,5 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Results – Raha{% endblock %}
+{% block head %}
+<style>
+  /* Force persistent scrollbar so the sticky navbar never shifts when cards load */
+  html { overflow-y: scroll; }
+
+  .modal-form-label { font-size: .85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .35rem; display: block; }
+  .modal-input {
+    width: 100%; background: var(--bg-surface);
+    border: 1.5px solid var(--border-input);
+    color: var(--text-primary);
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: .9rem;
+    padding: .6rem .9rem;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .modal-input:focus { border-color: var(--rp); box-shadow: 0 0 0 3px var(--rp15); }
+  .modal-input::placeholder { color: var(--text-muted); }
+</style>
+{% endblock %}
 {% block content %}
 <div class="max-w-6xl mx-auto px-8 py-10 space-y-8">
   <div class="flex items-center justify-between">
@@ -20,6 +41,48 @@
     <a href="/analyze" class="btn-primary inline-flex mx-auto">Start Analyzing</a>
   </div>
   <div id="results-grid" class="hidden grid md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+</div>
+<!-- ══ Report Issue Modal ══ -->
+<div id="reportIssueModal" class="fixed inset-0 z-50 flex items-center justify-center hidden"
+     style="background:rgba(0,0,0,0.5)" onclick="if(event.target===this)toggleModal(false)">
+  <div class="card" style="width:100%;max-width:28rem;margin:1rem;padding:0;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid var(--border-subtle)">
+      <h5 class="font-heading font-bold" style="color:var(--text-primary);margin:0;font-size:1.05rem">
+        <i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:6px;color:var(--rp)"></i>
+        Report an Issue
+      </h5>
+      <button onclick="toggleModal(false)" class="btn-ghost" style="padding:.3rem .5rem;line-height:1" aria-label="Close">
+        <i data-lucide="x" style="width:16px;height:16px"></i>
+      </button>
+    </div>
+    <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem">
+      <div>
+        <label class="modal-form-label" for="issue-type">Issue Type</label>
+        <select class="modal-input" id="issue-type">
+          <option value="Segmentation Error">Segmentation Error</option>
+          <option value="UI Bug">UI Bug</option>
+          <option value="Calculation Error">Calculation Error</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="modal-form-label" for="issue-title">Title</label>
+        <input type="text" class="modal-input" id="issue-title" placeholder="e.g. Missing M2 Root">
+      </div>
+      <div>
+        <label class="modal-form-label" for="issue-desc">Description</label>
+        <textarea class="modal-input" id="issue-desc" rows="4"
+                  placeholder="Describe the issue in detail…" style="resize:vertical"></textarea>
+      </div>
+      <div id="issue-error" class="alert-error" style="display:none"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:1rem 1.5rem;border-top:1px solid var(--border-subtle)">
+      <button onclick="toggleModal(false)" class="btn-outline" style="padding:.45rem 1.1rem;font-size:.85rem">Cancel</button>
+      <button onclick="submitIssue()" class="btn-primary" style="padding:.45rem 1.1rem;font-size:.85rem">
+        <i data-lucide="send" class="w-4 h-4"></i> Submit Report
+      </button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -47,21 +110,46 @@ async function load() {
           <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.TV_mm3}</p><p class="text-xs" style="color:var(--text-muted)">TV mm³</p></div>
           <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.BV_TV}</p><p class="text-xs" style="color:var(--text-muted)">BV/TV</p></div>
         </div>` : `<p class="text-sm text-center py-2" style="color:var(--text-muted)">Analysis pending…</p>`}
-        <button onclick="reportIssue(${s.id})" class="btn-outline w-full justify-center text-sm" style="padding:.4rem">
-          <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Report Issue
-        </button>
+        <div class="flex gap-2">
+          <a href="/scan/${s.id}" class="btn-primary flex-1 justify-center text-sm" style="padding:.4rem">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i> View
+          </a>
+          <button onclick="openReportModal(${s.id})" class="btn-outline flex-1 justify-center text-sm" style="padding:.4rem">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Report Issue
+          </button>
+        </div>
       </div>`;
     }).join('');
     lucide.createIcons();
   } catch(err) { document.getElementById('loading').innerHTML = `<p style="color:#dc2626">${err.message}</p>`; }
 }
-async function reportIssue(scanId) {
-  const title = prompt('Issue title:'); if (!title) return;
-  const desc  = prompt('Describe the issue:'); if (!desc) return;
+let _reportScanId = null;
+
+function openReportModal(scanId) {
+  _reportScanId = scanId;
+  document.getElementById('issue-title').value = '';
+  document.getElementById('issue-desc').value  = '';
+  document.getElementById('issue-error').style.display = 'none';
+  toggleModal(true);
+}
+function toggleModal(show) {
+  document.getElementById('reportIssueModal').classList.toggle('hidden', !show);
+  lucide.createIcons();
+}
+async function submitIssue() {
+  const type  = document.getElementById('issue-type').value;
+  const title = document.getElementById('issue-title').value.trim();
+  const desc  = document.getElementById('issue-desc').value.trim();
+  const errEl = document.getElementById('issue-error');
+  errEl.style.display = 'none';
+  if (!title) { errEl.textContent = 'Please enter a title.'; errEl.style.display = 'block'; return; }
+  if (!desc)  { errEl.textContent = 'Please enter a description.'; errEl.style.display = 'block'; return; }
+  const combinedTitle = `[${type}] ${title}`;
   try {
-    await api('/api/scans/issues', { method:'POST', body:JSON.stringify({scan_id:scanId,title,description:desc}) });
+    await api('/api/scans/issues', { method:'POST', body:JSON.stringify({scan_id:_reportScanId, title:combinedTitle, description:desc}) });
+    toggleModal(false);
     toast('Issue reported — thank you!');
-  } catch(e) { toast(e.message,'err'); }
+  } catch(e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
 }
 load(); lucide.createIcons();
 </script>

@@ -1,0 +1,811 @@
+{% extends "base.html" %}
+{% block title %}Scan Detail – Raha{% endblock %}
+
+{% block head %}
+<!-- Niivue WebGL viewer -->
+<script src="https://niivue.github.io/niivue/features/niivue.umd.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<!-- html2pdf -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  /* ── Tab bar ── */
+  .tab-bar {
+    display: flex; gap: .25rem;
+    border-bottom: 2px solid var(--border-subtle);
+    margin-bottom: 1.5rem;
+  }
+  .tab-btn {
+    padding: .55rem 1.4rem; border-radius: 8px 8px 0 0;
+    font-family: 'Outfit', sans-serif; font-weight: 600; font-size: .9rem;
+    border: none; cursor: pointer;
+    background: transparent; color: var(--text-secondary);
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: color .2s, border-color .2s, background .2s;
+  }
+  .tab-btn.active {
+    color: var(--rp);
+    border-bottom-color: var(--rp);
+    background: var(--surface);
+  }
+  .tab-btn:hover:not(.active) { color: var(--text-primary); background: var(--bg-surface); }
+
+  /* ── Niivue canvas containers ── */
+  #gl, #gl-baseline, #gl-compare { width: 100%; height: 480px; border-radius: 10px; overflow: hidden; background: #000; }
+
+  /* ── Delta values ── */
+  .delta-pos { color: #378d8c; font-weight: 700; }
+  .delta-neg { color: #dc2626; font-weight: 700; }
+  .delta-neu { color: var(--text-muted); font-weight: 700; }
+
+  /* ── Metric card ── */
+  .metric-card {
+    border-radius: 10px; padding: 1rem 1.25rem;
+    border: 1px solid var(--border); background: var(--bg-card);
+    display: flex; flex-direction: column; gap: .15rem;
+  }
+  .metric-value { font-family: 'Outfit', sans-serif; font-size: 1.45rem; font-weight: 700; color: var(--rp); }
+  .metric-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+
+  /* ── Action bar ── */
+  .action-bar {
+    display: flex; gap: .75rem; align-items: center;
+    padding: .75rem 1rem; border-radius: 10px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+    margin-bottom: 1rem;
+  }
+
+
+  .modal-form-label { font-size: .85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .35rem; display: block; }
+  .modal-input {
+    width: 100%; background: var(--bg-surface);
+    border: 1.5px solid var(--border-input);
+    color: var(--text-primary);
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: .9rem;
+    padding: .6rem .9rem;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .modal-input:focus {
+    border-color: var(--rp);
+    box-shadow: 0 0 0 3px var(--rp15);
+  }
+  .modal-input::placeholder { color: var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-8 py-10 space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center gap-4">
+    <a href="/results" class="btn-ghost" style="padding:.4rem .9rem;font-size:.85rem">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+    </a>
+    <div>
+      <h1 id="scan-title" class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Loading…</h1>
+      <p id="scan-date" class="text-sm" style="color:var(--text-secondary)"></p>
+    </div>
+    <span id="severity-badge" class="badge badge-pending ml-auto">—</span>
+  </div>
+
+  <!-- Export Action Bar -->
+  <div class="action-bar">
+    <span class="text-sm font-semibold" style="color:var(--text-secondary);margin-right:.25rem">Export:</span>
+    <button onclick="exportCSV()" class="btn-outline" style="padding:.4rem 1rem;font-size:.85rem">
+      <i data-lucide="download" class="w-4 h-4"></i> Export CSV
+    </button>
+    <button onclick="exportPDF()" class="btn-outline" style="padding:.4rem 1rem;font-size:.85rem">
+      <i data-lucide="file-text" class="w-4 h-4"></i> Export PDF Report
+    </button>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('analysis', this)">
+      <i data-lucide="scan-line" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:4px"></i>
+      Scan Analysis
+    </button>
+    <button class="tab-btn" onclick="switchTab('detailed', this)">
+      <i data-lucide="activity" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:4px"></i>
+      Detailed Metrics
+    </button>
+    <button class="tab-btn" onclick="switchTab('compare', this)">
+      <i data-lucide="git-compare" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:4px"></i>
+      Treatment Comparison
+    </button>
+  </div>
+
+  <!-- ══ TAB 1: Scan Analysis ══ -->
+  <div id="tab-analysis" class="space-y-6">
+    <!-- Loading state -->
+    <div id="analysis-loading" class="text-center py-20" style="color:var(--text-secondary)">
+      <div class="spinner mx-auto mb-4"></div> Loading scan data…
+    </div>
+
+    <!-- Main layout: viewer (70%) + metrics (30%) — this div is the PDF target -->
+    <div id="analysis-body" class="hidden" style="display:none">
+      <div style="display:flex;gap:1.5rem;align-items:flex-start">
+
+        <!-- Niivue viewer (70%) -->
+        <div style="flex:0 0 70%" class="card p-3">
+          <p class="text-xs font-semibold uppercase mb-2" style="color:var(--text-muted);letter-spacing:.06em">
+            <i data-lucide="layers" style="width:12px;height:12px;display:inline;vertical-align:middle"></i>
+            Multiplanar View
+          </p>
+          <canvas id="gl"></canvas>
+        </div>
+
+        <!-- Metrics panel (30%) -->
+        <div style="flex:0 0 calc(30% - 1.5rem);display:flex;flex-direction:column;gap:1rem">
+          <div class="metric-card">
+            <span class="metric-label">BV mm³ — Bone Volume</span>
+            <span id="val-bv" class="metric-value">—</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">TV mm³ — Total Volume</span>
+            <span id="val-tv" class="metric-value">—</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">BV/TV — Bone Fraction</span>
+            <span id="val-bvtv" class="metric-value">—</span>
+          </div>
+
+          <!-- Diagnosis + Severity card -->
+          <div class="metric-card" style="gap:.5rem">
+            <span class="metric-label">Clinical Diagnosis</span>
+            <span id="diagnosis-text" class="font-heading text-lg font-bold" style="color:var(--text-primary)">—</span>
+            <span class="metric-label" style="margin-top:.4rem">Severity Assessment</span>
+            <span id="severity-badge-2" class="badge badge-pending" style="align-self:flex-start">—</span>
+            <p id="severity-desc" class="text-xs" style="color:var(--text-secondary);margin-top:.25rem"></p>
+          </div>
+
+          <!-- Report issue button -->
+          <button id="btn-report" onclick="toggleModal(true)"
+                  class="btn-outline w-full justify-center" style="margin-top:.25rem">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i> Report Issue
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 2: Detailed Metrics ══ -->
+  <div id="tab-detailed" class="hidden">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+
+      <!-- Panel A: Severity Gauge -->
+      <div class="card p-6 space-y-4">
+        <div>
+          <h2 class="font-heading text-lg font-bold" style="color:var(--text-primary)">Severity Gauge</h2>
+          <p class="text-sm" style="color:var(--text-secondary)">BV/TV ratio plotted against clinical severity thresholds.</p>
+        </div>
+        <div style="position:relative;height:260px;display:flex;align-items:center;justify-content:center">
+          <canvas id="severity-gauge-chart"></canvas>
+          <div id="gauge-center-label" style="position:absolute;bottom:10px;text-align:center;pointer-events:none">
+            <p id="gauge-bvtv-val" class="font-heading font-bold" style="font-size:2rem;color:var(--rp);margin:0;line-height:1"></p>
+            <p style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.25rem 0 0">BV / TV</p>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:1.25rem">
+          <span style="font-size:.75rem;color:#dc2626;font-weight:600">● Severe (&lt;0.25)</span>
+          <span style="font-size:.75rem;color:#a16207;font-weight:600">● Moderate (0.25–0.40)</span>
+          <span style="font-size:.75rem;color:#378d8c;font-weight:600">● Healthy (&gt;0.40)</span>
+        </div>
+      </div>
+
+      <!-- Panel B: Z-Axis Bone Profile -->
+      <div class="card p-6 space-y-4">
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <h2 class="font-heading text-lg font-bold" style="color:var(--text-primary)">Z-Axis Bone Profile</h2>
+          <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:.2rem .55rem;border-radius:20px;background:var(--rp15);color:var(--rp)">Preview</span>
+        </div>
+        <p class="text-sm" style="color:var(--text-secondary)">BV/TV ratio per slice along the axial axis.</p>
+        <div style="position:relative;height:260px">
+          <canvas id="zaxis-chart"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ TAB 3: Treatment Comparison ══ -->
+  <div id="tab-compare" class="hidden space-y-5">
+
+    <!-- Scan selector bar -->
+    <div class="action-bar" style="flex-wrap:wrap;gap:.75rem">
+      <label class="text-sm font-semibold" style="color:var(--text-secondary);white-space:nowrap">
+        <i data-lucide="git-compare" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:4px"></i>
+        Select Post-Treatment Scan to Compare:
+      </label>
+      <select id="compare-select" class="input" style="flex:1;min-width:12rem;max-width:26rem;padding:.45rem .9rem;font-size:.875rem"
+              onchange="onCompareSelect(this.value)">
+        <option value="">— choose a scan —</option>
+      </select>
+      <button id="btn-clear-compare" onclick="clearComparison()" class="hidden btn-ghost"
+              style="padding:.35rem .75rem;font-size:.8rem;white-space:nowrap">
+        <i data-lucide="x" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:3px"></i>
+        Clear
+      </button>
+      <div id="compare-loading" class="hidden" style="color:var(--text-muted);font-size:.85rem;display:none;align-items:center;gap:.5rem">
+        <div class="spinner" style="width:18px;height:18px;border-width:2px"></div> Loading…
+      </div>
+    </div>
+
+    <!-- Placeholder shown before a scan is selected -->
+    <div id="compare-placeholder" class="card p-16 text-center space-y-2">
+      <i data-lucide="git-compare" class="w-10 h-10 mx-auto" style="color:var(--text-muted)"></i>
+      <p class="font-heading font-bold" style="color:var(--text-primary)">Select a scan above to begin comparison</p>
+      <p class="text-sm" style="color:var(--text-secondary)">The baseline is this scan. Choose any other scan as the post-treatment reference.</p>
+    </div>
+
+    <!-- Side-by-side panels — hidden until a scan is chosen -->
+    <div id="compare-panels" class="hidden" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+
+        <!-- ── LEFT: Baseline ── -->
+        <div class="space-y-3">
+          <p class="text-xs font-semibold uppercase" style="color:var(--text-muted);letter-spacing:.06em">
+            Baseline (This Scan)
+          </p>
+          <div class="card p-3">
+            <canvas id="gl-baseline"></canvas>
+          </div>
+          <div class="card p-4 space-y-3">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;text-align:center">
+              <div style="background:var(--bg-surface);border-radius:8px;padding:.6rem .4rem">
+                <p id="cmp-base-bv" class="font-bold text-sm" style="color:var(--rp)">—</p>
+                <p class="text-xs" style="color:var(--text-muted)">BV mm³</p>
+              </div>
+              <div style="background:var(--bg-surface);border-radius:8px;padding:.6rem .4rem">
+                <p id="cmp-base-tv" class="font-bold text-sm" style="color:var(--rp)">—</p>
+                <p class="text-xs" style="color:var(--text-muted)">TV mm³</p>
+              </div>
+              <div style="background:var(--bg-surface);border-radius:8px;padding:.6rem .4rem">
+                <p id="cmp-base-bvtv" class="font-bold text-sm" style="color:var(--rp)">—</p>
+                <p class="text-xs" style="color:var(--text-muted)">BV/TV</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── RIGHT: Treatment + Deltas ── -->
+        <div class="space-y-3">
+          <p class="text-xs font-semibold uppercase" style="color:var(--text-muted);letter-spacing:.06em">
+            Post-Treatment — <span id="cmp-treat-label" style="color:var(--rp)">—</span>
+          </p>
+          <div class="card p-3">
+            <canvas id="gl-compare"></canvas>
+          </div>
+          <div class="card p-4 space-y-3">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;text-align:center">
+              <div style="background:var(--bg-surface);border-radius:8px;padding:.6rem .4rem">
+                <p id="cmp-treat-bv" class="font-bold text-sm" style="color:var(--rp)">—</p>
+                <p class="text-xs" style="color:var(--text-muted)">BV mm³</p>
+                <p id="delta-bv" class="text-xs delta-neu" style="margin-top:.2rem">—</p>
+              </div>
+              <div style="background:var(--bg-surface);border-radius:8px;padding:.6rem .4rem">
+                <p id="cmp-treat-tv" class="font-bold text-sm" style="color:var(--rp)">—</p>
+                <p class="text-xs" style="color:var(--text-muted)">TV mm³</p>
+                <p id="delta-tv" class="text-xs delta-neu" style="margin-top:.2rem">—</p>
+              </div>
+              <div style="background:var(--bg-surface);border-radius:8px;padding:.6rem .4rem">
+                <p id="cmp-treat-bvtv" class="font-bold text-sm" style="color:var(--rp)">—</p>
+                <p class="text-xs" style="color:var(--text-muted)">BV/TV</p>
+                <p id="delta-bvtv" class="text-xs delta-neu" style="margin-top:.2rem">—</p>
+              </div>
+            </div>
+            <p class="text-xs text-center" style="color:var(--text-muted)">
+              Δ = Treatment − Baseline &nbsp;·&nbsp;
+              <span class="delta-pos">▲ positive</span> &nbsp;
+              <span class="delta-neg">▼ negative</span>
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ Report Issue Modal (Vanilla JS) ══ -->
+<div id="reportIssueModal" class="fixed inset-0 z-50 flex items-center justify-center hidden"
+     style="background:rgba(0,0,0,0.5)" onclick="if(event.target===this)toggleModal(false)">
+  <div class="card" style="width:100%;max-width:28rem;margin:1rem;padding:0;overflow:hidden">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid var(--border-subtle)">
+      <h5 class="font-heading font-bold" style="color:var(--text-primary);margin:0;font-size:1.05rem">
+        <i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:6px;color:var(--rp)"></i>
+        Report an Issue
+      </h5>
+      <button onclick="toggleModal(false)" class="btn-ghost" style="padding:.3rem .5rem;line-height:1" aria-label="Close">
+        <i data-lucide="x" style="width:16px;height:16px"></i>
+      </button>
+    </div>
+    <!-- Body -->
+    <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem">
+      <div>
+        <label class="modal-form-label" for="issue-type">Issue Type</label>
+        <select class="modal-input" id="issue-type">
+          <option value="Segmentation Error">Segmentation Error</option>
+          <option value="UI Bug">UI Bug</option>
+          <option value="Calculation Error">Calculation Error</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="modal-form-label" for="issue-title">Title</label>
+        <input type="text" class="modal-input" id="issue-title" placeholder="e.g. Missing M2 Root">
+      </div>
+      <div>
+        <label class="modal-form-label" for="issue-desc">Description</label>
+        <textarea class="modal-input" id="issue-desc" rows="4"
+                  placeholder="Describe the issue in detail…" style="resize:vertical"></textarea>
+      </div>
+      <div id="issue-error" class="alert-error" style="display:none"></div>
+    </div>
+    <!-- Footer -->
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;padding:1rem 1.5rem;border-top:1px solid var(--border-subtle)">
+      <button onclick="toggleModal(false)" class="btn-outline" style="padding:.45rem 1.1rem;font-size:.85rem">Cancel</button>
+      <button onclick="submitIssue()" class="btn-primary" style="padding:.45rem 1.1rem;font-size:.85rem">
+        <i data-lucide="send" class="w-4 h-4"></i> Submit Report
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!Auth.user()) window.location.href = '/login';
+
+const SCAN_ID = {{ scan_id }};
+let _scanData = null;
+let _nv = null;
+let _detailedReady = false;
+let _nvBaseline = null;
+let _nvCompare  = null;
+let _compareTabReady = false;
+
+/* ──────────────────────────────────────────────
+   Load scan data from existing API endpoint
+────────────────────────────────────────────── */
+async function loadScanData() {
+  try {
+    const data = await api(`/api/scans/results/${SCAN_ID}`);
+    _scanData = data;
+    renderMetrics(data);
+    initNiivue(data);
+    initSeverityGauge(data.BV_TV);
+    initZAxisPreview();
+  } catch (err) {
+    document.getElementById('analysis-loading').innerHTML =
+      `<p style="color:#dc2626">${esc(err.message)}</p>`;
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Render metric cards and header badges
+────────────────────────────────────────────── */
+function renderMetrics(d) {
+  // Header
+  document.getElementById('scan-title').textContent = esc(d.original_name ?? `Scan #${SCAN_ID}`);
+  document.getElementById('scan-date').textContent  = d.uploaded_at ? fmtDate(d.uploaded_at) : '';
+
+  // Metrics
+  document.getElementById('val-bv').textContent   = d.BV_mm3 ?? '—';
+  document.getElementById('val-tv').textContent   = d.TV_mm3 ?? '—';
+  document.getElementById('val-bvtv').textContent = d.BV_TV  ?? '—';
+
+  // Diagnosis
+  const diagnosis = d.diagnosis ?? 'Unknown';
+  document.getElementById('diagnosis-text').textContent = diagnosis;
+
+  // Severity — if Healthy, show green "Normal" badge
+  let sv, bc, desc;
+  if (diagnosis === 'Healthy') {
+    sv   = 'Normal';
+    bc   = 'badge-mild';   // green class from existing badge set
+    desc = 'No significant bone loss detected. Routine monitoring advised.';
+  } else {
+    sv   = d.severity ?? 'pending';
+    bc   = sv === 'severe'   ? 'badge-severe'
+         : sv === 'moderate' ? 'badge-moderate'
+         : sv === 'mild'     ? 'badge-mild'
+         :                     'badge-pending';
+    desc = sv === 'severe'   ? 'Significant bone loss detected. Clinical review recommended.'
+         : sv === 'moderate' ? 'Moderate bone loss. Monitor and consult a periodontist.'
+         : sv === 'mild'     ? 'Mild bone loss within manageable range.'
+         :                     'Analysis result not yet available.';
+  }
+
+  for (const id of ['severity-badge', 'severity-badge-2']) {
+    const el = document.getElementById(id);
+    el.className = `badge ${bc}`;
+    el.textContent = sv.charAt(0).toUpperCase() + sv.slice(1);
+  }
+  document.getElementById('severity-desc').textContent = desc;
+
+  // Show body, hide spinner
+  document.getElementById('analysis-loading').style.display = 'none';
+  const body = document.getElementById('analysis-body');
+  body.style.display = 'flex';
+  body.classList.remove('hidden');
+
+  lucide.createIcons();
+}
+
+/* ──────────────────────────────────────────────
+   Niivue – Multiplanar layout
+────────────────────────────────────────────── */
+async function initNiivue(d) {
+  if (typeof Niivue === 'undefined') return;
+
+  _nv = new Niivue({
+    show3Dcrosshair: true,
+    backColor: [0.15, 0.15, 0.15, 1],
+  });
+
+  await _nv.attachToCanvas(document.getElementById('gl'));
+  _nv.setSliceType(_nv.sliceTypeMultiplanar);
+
+  const url = d.segmentationUrl || d.imageUrl;
+  if (url) {
+    try {
+      await _nv.loadVolumes([{ url }]);
+    } catch (e) {
+      console.warn('Niivue could not load volume:', e);
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Chart.js – Severity Gauge (half-doughnut)
+────────────────────────────────────────────── */
+function initSeverityGauge(bvTv) {
+  const val  = typeof bvTv === 'number' ? bvTv : 0;
+  const ctx  = document.getElementById('severity-gauge-chart').getContext('2d');
+
+  // Three fixed segments filling the arc: Severe 0–0.25, Moderate 0.25–0.40, Healthy 0.40–1.0
+  // We normalise to [0,1] range → proportional widths: 0.25, 0.15, 0.60
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data:                [0.25, 0.15, 0.60],
+        backgroundColor:     ['rgba(239,68,68,.82)', 'rgba(234,179,8,.82)', 'rgba(55,141,140,.82)'],
+        hoverBackgroundColor: ['rgba(239,68,68,1)',   'rgba(234,179,8,1)',   'rgba(72,199,190,1)'],
+        borderWidth:         0,
+        hoverOffset:         4,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      circumference: 180,
+      rotation: -90,
+      cutout: '72%',
+      plugins: {
+        legend:  { display: false },
+        tooltip: {
+          enabled: true,
+          callbacks: {
+            label: ctx => {
+              const labels = ['Severe: < 0.25', 'Moderate: 0.25 - 0.40', 'Healthy: > 0.40'];
+              return ' ' + labels[ctx.dataIndex];
+            },
+            title: () => '',
+          },
+        },
+      },
+    },
+  });
+
+  // Display the numeric BV/TV value in the centre label
+  document.getElementById('gauge-bvtv-val').textContent = val.toFixed ? val.toFixed(4) : val;
+}
+
+/* ──────────────────────────────────────────────
+   Chart.js – Z-Axis Bone Profile (line, dummy data)
+────────────────────────────────────────────── */
+function initZAxisPreview() {
+  const ctx = document.getElementById('zaxis-chart').getContext('2d');
+  const isDark = document.getElementById('app-body').classList.contains('dark');
+  const gridColor  = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.07)';
+  const labelColor = isDark ? '#a0aec0' : '#64748b';
+
+  // Generate 200 dummy data points: starts ~0.50, dips to ~0.15 around slice 100, recovers
+  const slices = 200;
+  const data   = Array.from({ length: slices }, (_, i) => {
+    const t   = i / (slices - 1);           // 0 → 1
+    const dip = Math.exp(-Math.pow((t - 0.5) / 0.15, 2));  // gaussian dip centred at midpoint
+    return parseFloat((0.48 - 0.33 * dip + (Math.random() * 0.025 - 0.012)).toFixed(4));
+  });
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: Array.from({ length: slices }, (_, i) => i + 1),
+      datasets: [{
+        label: 'BV/TV',
+        data,
+        borderColor:     'var(--rp)',
+        backgroundColor: 'rgba(99,102,241,.08)',
+        borderWidth:     2,
+        pointRadius:     0,
+        tension:         0.4,
+        fill:            true,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: labelColor, font: { family: 'Inter', size: 12 } } },
+        tooltip: {
+          callbacks: { title: items => `Slice ${items[0].label}` },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: labelColor, maxTicksLimit: 10 },
+          grid:  { color: gridColor },
+          title: { display: true, text: 'Slice (Z)', color: labelColor, font: { size: 11 } },
+        },
+        y: {
+          ticks: { color: labelColor },
+          grid:  { color: gridColor },
+          title: { display: true, text: 'BV / TV', color: labelColor, font: { size: 11 } },
+          min: 0, max: 0.8,
+        },
+      },
+    },
+  });
+}
+
+/* ──────────────────────────────────────────────
+   Tab switching
+────────────────────────────────────────────── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-analysis').classList.toggle('hidden', name !== 'analysis');
+  document.getElementById('tab-detailed').classList.toggle('hidden', name !== 'detailed');
+  document.getElementById('tab-compare').classList.toggle('hidden',  name !== 'compare');
+
+  if (name === 'analysis' && _nv) setTimeout(() => _nv.resizeListener(), 50);
+  if (name === 'compare') {
+    if (!_compareTabReady) { initCompareTab(); _compareTabReady = true; }
+    setTimeout(() => {
+      if (_nvBaseline) _nvBaseline.resizeListener();
+      if (_nvCompare)  _nvCompare.resizeListener();
+    }, 50);
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Export CSV
+────────────────────────────────────────────── */
+function exportCSV() {
+  if (!_scanData) { toast('No scan data loaded yet.', 'err'); return; }
+  const d = _scanData;
+  const rows = [
+    ['Field', 'Value'],
+    ['Scan ID', SCAN_ID],
+    ['File Name', d.original_name ?? ''],
+    ['Uploaded At', d.uploaded_at ?? ''],
+    ['BV mm³', d.BV_mm3 ?? ''],
+    ['TV mm³', d.TV_mm3 ?? ''],
+    ['BV/TV', d.BV_TV ?? ''],
+    ['Diagnosis', d.diagnosis ?? ''],
+    ['Severity', d.severity ?? 'N/A'],
+  ];
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `raha_scan_${SCAN_ID}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ──────────────────────────────────────────────
+   Export PDF — targets analysis-body, A4 landscape
+   Waits for Niivue canvas to be ready
+────────────────────────────────────────────── */
+async function exportPDF() {
+  if (!_scanData) { toast('No scan data loaded yet.', 'err'); return; }
+  toast('Preparing PDF…');
+
+  // Give the WebGL canvas a moment to settle
+  await new Promise(r => setTimeout(r, 300));
+
+  const element = document.getElementById('analysis-body');
+  const opt = {
+    margin:      [10, 10, 10, 10],
+    filename:    `raha_scan_${SCAN_ID}.pdf`,
+    image:       { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'landscape' },
+  };
+
+  try {
+    await html2pdf().set(opt).from(element).save();
+  } catch (e) {
+    toast('PDF export failed: ' + e.message, 'err');
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Report Issue — Bootstrap modal submission
+────────────────────────────────────────────── */
+async function submitIssue() {
+  const type  = document.getElementById('issue-type').value;
+  const title = document.getElementById('issue-title').value.trim();
+  const desc  = document.getElementById('issue-desc').value.trim();
+  const errEl = document.getElementById('issue-error');
+
+  errEl.style.display = 'none';
+  if (!title) { errEl.textContent = 'Please enter a title.'; errEl.style.display = 'block'; return; }
+  if (!desc)  { errEl.textContent = 'Please enter a description.'; errEl.style.display = 'block'; return; }
+
+  // Combine type into title: "[Segmentation Error] My title"
+  const combinedTitle = `[${type}] ${title}`;
+
+  try {
+    await api('/api/scans/issues', {
+      method: 'POST',
+      body: JSON.stringify({ scan_id: SCAN_ID, title: combinedTitle, description: desc }),
+    });
+    toggleModal(false);
+    // Reset form
+    document.getElementById('issue-title').value = '';
+    document.getElementById('issue-desc').value  = '';
+    toast('Issue reported — thank you!');
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Treatment Comparison tab
+────────────────────────────────────────────── */
+function clearComparison() {
+  document.getElementById('compare-select').value = '';
+  document.getElementById('compare-panels').classList.add('hidden');
+  document.getElementById('compare-panels').style.display = 'none';
+  document.getElementById('compare-placeholder').classList.remove('hidden');
+  document.getElementById('btn-clear-compare').classList.add('hidden');
+}
+
+async function initCompareTab() {
+  document.getElementById('compare-loading').classList.add('hidden');
+  document.getElementById('compare-loading').style.display = 'none';
+  try {
+    const scans = await api('/api/scans/my-scans');
+    const sel = document.getElementById('compare-select');
+    // Populate with all scans except the current one
+    scans
+      .filter(s => s.id !== SCAN_ID)
+      .forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${esc(s.original_name)} — ${fmtDate(s.uploaded_at)}`;
+        sel.appendChild(opt);
+      });
+  } catch(e) { toast('Could not load scan list: ' + e.message, 'err'); }
+}
+
+async function onCompareSelect(treatId) {
+  if (!treatId) return;
+
+  const loadingEl   = document.getElementById('compare-loading');
+  const placeholder = document.getElementById('compare-placeholder');
+  const panels      = document.getElementById('compare-panels');
+
+  loadingEl.classList.remove('hidden');
+  loadingEl.style.display = 'flex';
+  placeholder.classList.add('hidden');
+  panels.classList.add('hidden');
+  panels.style.display = 'none';
+  document.getElementById('btn-clear-compare').classList.remove('hidden');
+
+  try {
+    const data = await api(`/api/scans/compare?baseline_id=${SCAN_ID}&treatment_id=${treatId}`);
+    renderCompare(data, parseInt(treatId));
+  } catch(e) {
+    toast(e.message, 'err');
+  } finally {
+    loadingEl.classList.add('hidden');
+    loadingEl.style.display = 'none';
+  }
+}
+
+function renderCompare(data, treatId) {
+  const { baseline, treatment, deltas } = data;
+
+  // Populate baseline metric cards
+  document.getElementById('cmp-base-bv').textContent   = baseline.BV_mm3 ?? '—';
+  document.getElementById('cmp-base-tv').textContent   = baseline.TV_mm3 ?? '—';
+  document.getElementById('cmp-base-bvtv').textContent = baseline.BV_TV  ?? '—';
+
+  // Populate treatment metric cards
+  document.getElementById('cmp-treat-bv').textContent   = treatment.BV_mm3 ?? '—';
+  document.getElementById('cmp-treat-tv').textContent   = treatment.TV_mm3 ?? '—';
+  document.getElementById('cmp-treat-bvtv').textContent = treatment.BV_TV  ?? '—';
+
+  // Treatment scan label
+  const sel = document.getElementById('compare-select');
+  document.getElementById('cmp-treat-label').textContent =
+    sel.options[sel.selectedIndex]?.text ?? `Scan #${treatId}`;
+
+  // Delta helper — formats value and assigns colour class
+  function applyDelta(elId, val, higherIsBetter = true) {
+    const el = document.getElementById(elId);
+    if (val === null || val === undefined) { el.textContent = '—'; el.className = 'text-xs delta-neu'; return; }
+    const sign   = val > 0 ? '▲ +' : val < 0 ? '▼ ' : '→ ';
+    const isGood = higherIsBetter ? val > 0 : val < 0;
+    el.textContent = sign + val;
+    el.className   = `text-xs ${val === 0 ? 'delta-neu' : isGood ? 'delta-pos' : 'delta-neg'}`;
+    el.style.marginTop = '.2rem';
+  }
+  // BV increasing = bone volume recovering = positive; TV/BV_TV context-dependent
+  applyDelta('delta-bv',   deltas.BV_mm3, true);
+  applyDelta('delta-tv',   deltas.TV_mm3, false);   // smaller total volume = better after treatment
+  applyDelta('delta-bvtv', deltas.BV_TV,  true);    // higher BV/TV ratio = healthier
+
+  // Show panels
+  const panels = document.getElementById('compare-panels');
+  panels.style.display = 'grid';
+  panels.classList.remove('hidden');
+
+  // Init / refresh Niivue instances
+  initCompareViewers(baseline, treatment);
+}
+
+async function initCompareViewers(baseline, treatment) {
+  if (typeof Niivue === 'undefined') return;
+
+  // Destroy previous instances if re-selecting
+  if (_nvBaseline) { try { _nvBaseline.canvas = null; } catch(_) {} }
+  if (_nvCompare)  { try { _nvCompare.canvas  = null; } catch(_) {} }
+
+  _nvBaseline = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1] });
+  _nvCompare  = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1] });
+
+  await _nvBaseline.attachToCanvas(document.getElementById('gl-baseline'));
+  await _nvCompare.attachToCanvas(document.getElementById('gl-compare'));
+
+  _nvBaseline.setSliceType(_nvBaseline.sliceTypeMultiplanar);
+  _nvCompare.setSliceType(_nvCompare.sliceTypeMultiplanar);
+
+  // Load volumes (baseline uses segmentation URL if available)
+  const baseUrl  = baseline.segmentationUrl  || baseline.imageUrl;
+  const treatUrl = treatment.segmentationUrl || treatment.imageUrl;
+
+  const loads = [];
+  if (baseUrl)  loads.push(_nvBaseline.loadVolumes([{ url: baseUrl  }]).catch(e => console.warn('Baseline Niivue:', e)));
+  if (treatUrl) loads.push(_nvCompare.loadVolumes([{ url: treatUrl }]).catch(e => console.warn('Treatment Niivue:', e)));
+  await Promise.all(loads);
+
+  // Synchronise pan/zoom/scroll between the two viewers
+  _nvBaseline.syncWith(_nvCompare);
+}
+
+/* ──────────────────────────────────────────────
+   Modal toggle
+────────────────────────────────────────────── */
+function toggleModal(show) {
+  document.getElementById('reportIssueModal').classList.toggle('hidden', !show);
+  lucide.createIcons();
+}
+
+// Kick off
+loadScanData();
+lucide.createIcons();
+</script>
+{% endblock %}

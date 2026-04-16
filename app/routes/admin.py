@@ -14,7 +14,7 @@ router = APIRouter()
 def list_users(admin: dict = Depends(admin_only)):
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT id, full_name, email, role, title, professional_role, created_at FROM Users"
+            "SELECT id, full_name, email, role, title, professional_role, institution, created_at FROM Users"
         ).fetchall()
     return [dict(r) for r in rows]
 
