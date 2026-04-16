@@ -8,9 +8,10 @@ import shutil
 from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException
 from pydantic import BaseModel
+from psycopg2.extras import RealDictCursor
 from app.db_helpers import (
     save_scan, save_results, get_results_by_scan,
-    get_scan_filename, log_event, get_conn
+    get_scan_filename, log_event, _conn
 )
 from app.auth_utils import auth_required
 
@@ -21,16 +22,18 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 @router.get("/my-scans")
 def my_scans(user: dict = Depends(auth_required)):
-    with get_conn() as conn:
-        rows = conn.execute(
-            """SELECT s.id, s.filename, s.original_name, s.uploaded_at, s.status,
-                      r.BV_mm3, r.TV_mm3, r.BV_TV, r.severity
-               FROM Scans s
-               LEFT JOIN Results r ON r.scan_id = s.id
-               WHERE s.user_id = ?
-               ORDER BY s.uploaded_at DESC""",
-            (user["id"],),
-        ).fetchall()
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """SELECT s.id, s.filename, s.original_name, s.uploaded_at, s.status,
+                          r.bv_mm3 AS "BV_mm3", r.tv_mm3 AS "TV_mm3", r.bv_tv AS "BV_TV", r.severity
+                   FROM scans s
+                   LEFT JOIN results r ON r.scan_id = s.id
+                   WHERE s.user_id = %s
+                   ORDER BY s.uploaded_at DESC""",
+                (user["id"],),
+            )
+            rows = cur.fetchall()
     return [dict(r) for r in rows]
 
 
@@ -44,7 +47,6 @@ async def upload_scan(
     with dest.open("wb") as f:
         shutil.copyfileobj(scan.file, f)
 
-    # Save scan record
     scan_id = save_scan(
         user_id=user["id"],
         filename=str(dest),
@@ -53,12 +55,9 @@ async def upload_scan(
 
     log_event(user["id"], "upload", f"Uploaded scan: {scan.filename}")
 
-    # ── Replace this block with your real AI model later ──────────────
-    # Placeholder segmentation copy
     seg_path = UPLOAD_DIR / (dest.stem + "_seg" + dest.suffix)
     shutil.copy(dest, seg_path)
 
-    # Mock results — replace with real model output
     import random
     BV    = round(random.uniform(50, 200), 2)
     TV    = round(random.uniform(300, 600), 2)
@@ -72,7 +71,6 @@ async def upload_scan(
 
     save_results(scan_id, BV, TV, BV_TV, severity, diagnosis)
     log_event(user["id"], "analysis", f"Analysis complete for scan {scan_id}: {diagnosis} / {severity}")
-    # ──────────────────────────────────────────────────────────────────
 
     return {
         "message": "Uploaded and analysed successfully",
@@ -95,12 +93,15 @@ def compare_scans(
     treatment_id: int,
     user: dict = Depends(auth_required),
 ):
-    baseline  = get_results_by_scan(baseline_id)
-    treatment = get_results_by_scan(treatment_id)
-    if not baseline:
+    baseline_rows  = get_results_by_scan(baseline_id)
+    treatment_rows = get_results_by_scan(treatment_id)
+    if not baseline_rows:
         raise HTTPException(404, f"No results found for baseline scan {baseline_id}")
-    if not treatment:
+    if not treatment_rows:
         raise HTTPException(404, f"No results found for treatment scan {treatment_id}")
+
+    baseline  = baseline_rows[0]
+    treatment = treatment_rows[0]
 
     def delta(a, b):
         if a is None or b is None:
@@ -123,7 +124,7 @@ def get_results(scan_id: int, user: dict = Depends(auth_required)):
     result = get_results_by_scan(scan_id)
     if not result:
         raise HTTPException(404, "No results found for this scan")
-    return result
+    return result[0]
 
 
 class IssueBody(BaseModel):

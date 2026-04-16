@@ -1,108 +1,109 @@
-import sqlite3
+import psycopg2
 
-DB_PATH = 'raha.db'
+DB_CONFIG = {
+    'dbname': 'raha',
+    'user': 'fellwakh',
+    'password': '',
+    'host': 'localhost',
+    'port': '5432'
+}
 
 def create_tables():
-    conn = sqlite3.connect(DB_PATH)
+    conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            full_name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT DEFAULT 'researcher',
-            gender TEXT,
-            title TEXT,
-            professional_role TEXT,
-            institution TEXT,
-            avatar_url TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    # Graceful migrations for existing databases
-    for col, definition in [('institution', 'TEXT'), ('avatar_url', 'TEXT')]:
-        try:
-            cursor.execute(f'ALTER TABLE Users ADD COLUMN {col} {definition}')
-        except Exception:
-            pass  # Column already exists
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Scans (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER REFERENCES Users(id),
-            filename TEXT NOT NULL,
-            original_name TEXT,
-            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            status TEXT DEFAULT 'pending'
-        )
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            scan_id INTEGER REFERENCES Scans(id),
-            BV_mm3 REAL,
-            TV_mm3 REAL,
-            BV_TV REAL,
-            severity TEXT,
-            diagnosis TEXT,
-            analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    # Migrate existing databases that pre-date the diagnosis column
     try:
-        cursor.execute('ALTER TABLE Results ADD COLUMN diagnosis TEXT')
-    except Exception:
-        pass  # Column already exists
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                full_name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT DEFAULT 'researcher',
+                gender TEXT,
+                title TEXT,
+                professional_role TEXT,
+                institution TEXT,
+                avatar_url TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Issues (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER REFERENCES Users(id),
-            scan_id INTEGER REFERENCES Scans(id),
-            title TEXT,
-            description TEXT,
-            status TEXT DEFAULT 'open',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS scans (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                filename TEXT NOT NULL,
+                original_name TEXT,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'pending'
+            )
+        ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS SystemLogs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER REFERENCES Users(id),
-            event_type TEXT,
-            description TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS results (
+                id SERIAL PRIMARY KEY,
+                scan_id INTEGER REFERENCES scans(id) ON DELETE CASCADE,
+                BV_mm3 REAL,
+                TV_mm3 REAL,
+                BV_TV REAL,
+                severity TEXT,
+                diagnosis TEXT,
+                analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ContactMessages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name TEXT,
-            last_name TEXT,
-            email TEXT,
-            message TEXT,
-            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS issues (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                scan_id INTEGER REFERENCES scans(id) ON DELETE SET NULL,
+                title TEXT,
+                description TEXT,
+                status TEXT DEFAULT 'open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS PasswordResetTokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER REFERENCES Users(id),
-            token TEXT NOT NULL,
-            expires_at TIMESTAMP,
-            used INTEGER DEFAULT 0
-        )
-    ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS system_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                event_type TEXT,
+                description TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-    conn.commit()
-    conn.close()
-    print("Done")
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS contact_messages (
+                id SERIAL PRIMARY KEY,
+                first_name TEXT,
+                last_name TEXT,
+                email TEXT,
+                message TEXT,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                token TEXT NOT NULL,
+                expires_at TIMESTAMP,
+                used BOOLEAN DEFAULT FALSE
+            )
+        ''')
+
+        conn.commit()
+        print("All tables created!")
+    except Exception as e:
+        conn.rollback()
+        print(f"create_tables error: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
     create_tables()

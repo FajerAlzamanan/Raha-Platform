@@ -6,7 +6,8 @@ import shutil
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
-from app.db_helpers import get_user_by_id, update_user, get_conn
+from psycopg2.extras import RealDictCursor
+from app.db_helpers import get_user_by_id, update_user, delete_user
 from app.auth_utils import auth_required, hash_password, validate_password
 
 router = APIRouter()
@@ -35,7 +36,6 @@ def get_profile(user: dict = Depends(auth_required)):
 
 @router.put("/me")
 def update_profile(body: ProfileUpdate, user: dict = Depends(auth_required)):
-    # Only update profile fields — never touch the system `role` column here
     fields = {
         "full_name":        body.full_name,
         "title":            body.title,
@@ -59,7 +59,6 @@ async def upload_avatar(
     file: UploadFile = File(...),
     user: dict = Depends(auth_required),
 ):
-    # Validate MIME type
     if not file.content_type.startswith("image/"):
         raise HTTPException(400, "File must be an image")
 
@@ -75,11 +74,5 @@ async def upload_avatar(
 
 @router.delete("/me")
 def delete_account(user: dict = Depends(auth_required)):
-    with get_conn() as conn:
-        # Nullify foreign keys in dependent tables so rows are orphaned, not blocked
-        conn.execute("UPDATE Scans SET user_id=NULL WHERE user_id=?", (user["id"],))
-        conn.execute("UPDATE Issues SET user_id=NULL WHERE user_id=?", (user["id"],))
-        conn.execute("UPDATE SystemLogs SET user_id=NULL WHERE user_id=?", (user["id"],))
-        conn.execute("DELETE FROM PasswordResetTokens WHERE user_id=?", (user["id"],))
-        conn.execute("DELETE FROM Users WHERE id=?", (user["id"],))
+    delete_user(user["id"])
     return {"message": "Account deleted"}
