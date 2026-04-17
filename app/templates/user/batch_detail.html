@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Batch Result – Raha{% endblock %}
+
+{% block head %}
+<style>
+/* ── Metric card ─────────────────────────────── */
+.metric-card {
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  text-align: center;
+  transition: box-shadow .25s, transform .25s, background .35s, border-color .35s;
+}
+.metric-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.08); transform: translateY(-2px); }
+.metric-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.9rem; font-weight: 700;
+  color: var(--rp); line-height: 1.1;
+}
+.metric-label {
+  font-size: .68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); margin-top: .3rem;
+}
+.metric-sublabel {
+  font-size: .75rem; color: var(--text-secondary);
+  margin-top: .15rem;
+}
+
+/* ── Slice belt ──────────────────────────────── */
+.belt-count {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .75rem; font-weight: 600;
+  padding: .2rem .7rem; border-radius: 9999px;
+  background: var(--rp15); color: var(--rp);
+}
+.belt-wrapper { display: flex; align-items: center; gap: .4rem; }
+.belt-scroll {
+  display: flex; gap: .6rem;
+  overflow-x: auto; flex: 1;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: .25rem .1rem;
+  cursor: grab; user-select: none;
+}
+.belt-scroll::-webkit-scrollbar { display: none; }
+.belt-scroll.grabbing { cursor: grabbing; }
+
+.thumb-card {
+  flex: 0 0 auto; width: 90px;
+  animation: thumb-pop .22s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes thumb-pop {
+  from { opacity: 0; transform: scale(.72); }
+  to   { opacity: 1; transform: scale(1);  }
+}
+.thumb-img {
+  width: 90px; height: 74px;
+  border-radius: 9px; overflow: hidden;
+  border: 1.5px solid var(--border-input);
+  background: var(--bg-surface);
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .2s, transform .15s, box-shadow .15s;
+}
+.thumb-img:hover {
+  border-color: var(--rp);
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px var(--rp15);
+}
+.thumb-img img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.thumb-name {
+  font-size: 9.5px; color: var(--text-muted); text-align: center;
+  margin-top: .25rem;
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 90px; padding: 0 2px;
+}
+.belt-arrow-btn {
+  flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-input);
+  color: var(--text-secondary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s;
+}
+.belt-arrow-btn:hover { border-color: var(--rp); color: var(--rp); background: var(--rp10); }
+.belt-arrow-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ── Severity description ────────────────────── */
+.diagnosis-card {
+  border-radius: 12px; padding: 1.5rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-8 py-10 space-y-8">
+
+  <!-- Header -->
+  <div class="flex items-start gap-4">
+    <a href="/results" class="btn-ghost flex-shrink-0" style="padding:.4rem .9rem;font-size:.85rem;margin-top:.15rem">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> Results History
+    </a>
+    <div class="flex-1 min-w-0">
+      <h1 id="batch-title" class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Loading…</h1>
+      <p id="batch-meta" class="text-sm mt-1" style="color:var(--text-secondary)"></p>
+    </div>
+    <span id="severity-badge" class="badge badge-pending flex-shrink-0" style="margin-top:.3rem;font-size:.8rem;padding:.3rem .9rem">—</span>
+  </div>
+
+  <!-- Loading state -->
+  <div id="page-loading" class="text-center py-24" style="color:var(--text-secondary)">
+    <div class="spinner mx-auto mb-4"></div>
+    Loading batch data…
+  </div>
+
+  <!-- Page body (revealed after load) -->
+  <div id="page-body" class="hidden space-y-6">
+
+    <!-- Combined metrics row -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="metric-card">
+        <p id="val-bv" class="metric-value">—</p>
+        <p class="metric-label">BV mm³</p>
+        <p class="metric-sublabel">Bone Volume</p>
+      </div>
+      <div class="metric-card">
+        <p id="val-tv" class="metric-value">—</p>
+        <p class="metric-label">TV mm³</p>
+        <p class="metric-sublabel">Total Volume</p>
+      </div>
+      <div class="metric-card">
+        <p id="val-bvtv" class="metric-value">—</p>
+        <p class="metric-label">BV / TV</p>
+        <p class="metric-sublabel">Bone Fraction</p>
+      </div>
+    </div>
+
+    <!-- Diagnosis + severity -->
+    <div class="diagnosis-card">
+      <div>
+        <p class="text-xs font-semibold uppercase" style="color:var(--text-muted);letter-spacing:.06em">Clinical Diagnosis</p>
+        <p id="diagnosis-text" class="font-heading text-xl font-bold mt-1" style="color:var(--text-primary)">—</p>
+        <p id="severity-desc" class="text-sm mt-1" style="color:var(--text-secondary)"></p>
+      </div>
+      <span id="severity-badge-2" class="badge badge-pending flex-shrink-0" style="font-size:.85rem;padding:.35rem 1.1rem">—</span>
+    </div>
+
+    <!-- Slice preview belt -->
+    <div class="card p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-heading font-semibold" style="color:var(--text-primary)">
+          <i data-lucide="images" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:6px;color:var(--rp)"></i>
+          Slice Preview
+        </h2>
+        <span class="belt-count">
+          <i data-lucide="layers" style="width:12px;height:12px"></i>
+          <span id="slice-count">0 slices</span>
+        </span>
+      </div>
+      <div class="belt-wrapper">
+        <button class="belt-arrow-btn" onclick="scrollBelt(-1)" type="button">
+          <i data-lucide="chevron-left" style="width:13px;height:13px"></i>
+        </button>
+        <div class="belt-scroll" id="belt-scroll"></div>
+        <button class="belt-arrow-btn" onclick="scrollBelt(1)" type="button">
+          <i data-lucide="chevron-right" style="width:13px;height:13px"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer actions -->
+    <div class="flex gap-3">
+      <a href="/results" class="btn-outline">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Results History
+      </a>
+      <a href="/analyze" class="btn-primary">
+        <i data-lucide="plus" class="w-4 h-4"></i> New Analysis
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!Auth.user()) window.location.href = '/login';
+
+const BATCH_ID = {{ batch_id }};
+
+async function loadBatch() {
+  try {
+    const data = await api(`/api/scans/batch/${BATCH_ID}`);
+    renderBatch(data);
+  } catch(err) {
+    document.getElementById('batch-title').textContent = 'Failed to load analysis';
+    document.getElementById('page-loading').innerHTML =
+      `<p style="color:#dc2626">${esc(err.message)}</p>`;
+  }
+}
+
+function renderBatch(data) {
+  // Header
+  document.getElementById('batch-title').textContent = data.title || `Batch #${BATCH_ID}`;
+  document.getElementById('batch-meta').textContent  =
+    `${fmtDate(data.created_at)} \u00b7 ${data.image_count} slice${data.image_count !== 1 ? 's' : ''}`;
+
+  // Metrics
+  document.getElementById('val-bv').textContent   = data.bv_mm3   ?? '—';
+  document.getElementById('val-tv').textContent   = data.tv_mm3   ?? '—';
+  document.getElementById('val-bvtv').textContent = data.bv_tv    ?? '—';
+
+  // Diagnosis + severity
+  const diagnosis = data.diagnosis ?? 'Unknown';
+  document.getElementById('diagnosis-text').textContent = diagnosis;
+
+  let sv, bc, desc;
+  if (diagnosis === 'Healthy') {
+    sv   = 'Normal';
+    bc   = 'badge-mild';
+    desc = 'No significant bone loss detected. Routine monitoring advised.';
+  } else {
+    sv   = data.severity ?? 'pending';
+    bc   = sv === 'severe'   ? 'badge-severe'
+         : sv === 'moderate' ? 'badge-moderate'
+         : sv === 'mild'     ? 'badge-mild'
+         :                     'badge-pending';
+    desc = sv === 'severe'   ? 'Significant bone loss detected. Clinical review recommended.'
+         : sv === 'moderate' ? 'Moderate bone loss. Monitor and consult a periodontist.'
+         : sv === 'mild'     ? 'Mild bone loss within manageable range.'
+         :                     'Analysis result not yet available.';
+  }
+
+  const svLabel = sv.charAt(0).toUpperCase() + sv.slice(1);
+  for (const id of ['severity-badge', 'severity-badge-2']) {
+    const el = document.getElementById(id);
+    el.className   = `badge ${bc}`;
+    el.textContent = svLabel;
+  }
+  document.getElementById('severity-desc').textContent = desc;
+
+  // Slice belt
+  renderBelt(data.slices || []);
+
+  // Reveal body
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-body').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function renderBelt(slices) {
+  document.getElementById('slice-count').textContent =
+    `${slices.length} slice${slices.length !== 1 ? 's' : ''}`;
+
+  const scroll = document.getElementById('belt-scroll');
+  scroll.innerHTML = '';
+
+  slices.forEach((s, i) => {
+    const ext   = (s.original_name || '').split('.').pop().toLowerCase();
+    const isImg = ['png','jpg','jpeg','bmp'].includes(ext);
+    const card  = document.createElement('div');
+    card.className = 'thumb-card';
+    card.style.animationDelay = `${i * 20}ms`;
+    card.innerHTML = `
+      <div class="thumb-img" title="${esc(s.original_name)}">
+        ${isImg
+          ? `<img src="/uploads/${esc(s.original_name)}" draggable="false"
+                  onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<i data-lucide=\\'file-scan\\' style=\\'width:26px;height:26px;color:var(--rp)\\'></i>')">`
+          : `<i data-lucide="file-scan" style="width:26px;height:26px;color:var(--rp)"></i>`}
+      </div>
+      <p class="thumb-name">${esc(s.original_name)}</p>`;
+    scroll.appendChild(card);
+  });
+
+  lucide.createIcons();
+  initBeltDrag();
+}
+
+function scrollBelt(dir) {
+  document.getElementById('belt-scroll').scrollBy({ left: dir * 220, behavior: 'smooth' });
+}
+
+function initBeltDrag() {
+  const el = document.getElementById('belt-scroll');
+  if (el._dragReady) return;
+  el._dragReady = true;
+
+  let down = false, startX, scrollLeft;
+  el.addEventListener('mousedown', e => {
+    down = true; el.classList.add('grabbing');
+    startX = e.pageX - el.offsetLeft; scrollLeft = el.scrollLeft;
+  });
+  el.addEventListener('mousemove', e => {
+    if (!down) return;
+    el.scrollLeft = scrollLeft - (e.pageX - el.offsetLeft - startX);
+  });
+  ['mouseup','mouseleave'].forEach(ev =>
+    el.addEventListener(ev, () => { down = false; el.classList.remove('grabbing'); }));
+
+  let tsX, tsScroll;
+  el.addEventListener('touchstart', e => {
+    tsX = e.touches[0].pageX - el.offsetLeft; tsScroll = el.scrollLeft;
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    el.scrollLeft = tsScroll - (e.touches[0].pageX - el.offsetLeft - tsX);
+  }, { passive: true });
+}
+
+loadBatch();
+lucide.createIcons();
+</script>
+{% endblock %}

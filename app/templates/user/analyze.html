@@ -1,75 +1,328 @@
 {% extends "base.html" %}
 {% block title %}Analyze – Raha{% endblock %}
 
+{% block head %}
+<style>
+/* ── Preview Belt ───────────────────────────────── */
+.belt-count {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .75rem; font-weight: 600;
+  padding: .2rem .7rem; border-radius: 9999px;
+  background: var(--rp15); color: var(--rp);
+}
+.belt-wrapper {
+  display: flex; align-items: center; gap: .4rem;
+}
+.belt-scroll {
+  display: flex; gap: .6rem;
+  overflow-x: auto; flex: 1;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: .25rem .1rem;
+  cursor: grab;
+  user-select: none;
+}
+.belt-scroll::-webkit-scrollbar { display: none; }
+.belt-scroll.grabbing { cursor: grabbing; }
+
+.thumb-card {
+  flex: 0 0 auto; width: 90px;
+  position: relative;
+  animation: thumb-pop .22s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes thumb-pop {
+  from { opacity: 0; transform: scale(.72); }
+  to   { opacity: 1; transform: scale(1);  }
+}
+.thumb-img {
+  width: 90px; height: 74px;
+  border-radius: 9px; overflow: hidden;
+  border: 1.5px solid var(--border-input);
+  background: var(--bg-surface);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: border-color .2s, transform .15s, box-shadow .15s;
+}
+.thumb-img:hover {
+  border-color: var(--rp);
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px var(--rp15);
+}
+.thumb-img img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.thumb-name {
+  font-size: 9.5px; color: var(--text-muted); text-align: center;
+  margin-top: .25rem;
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 90px; padding: 0 2px;
+}
+.thumb-rm {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #ef4444; color: #fff;
+  border: none; cursor: pointer;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 5;
+  transition: background .15s, transform .15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.thumb-rm:hover { background: #dc2626; transform: scale(1.2); }
+
+.belt-arrow-btn {
+  flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-input);
+  color: var(--text-secondary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s;
+}
+.belt-arrow-btn:hover {
+  border-color: var(--rp); color: var(--rp);
+  background: var(--rp10);
+}
+.belt-arrow-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ── Step Indicator ─────────────────────────────── */
+.steps-row {
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.step-item {
+  display: flex; flex-direction: column; align-items: center; gap: .4rem;
+  min-width: 80px;
+}
+.step-circle {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .82rem; font-weight: 700;
+  border: 2px solid var(--border-input);
+  color: var(--text-muted);
+  background: var(--bg-card);
+  transition: all .35s ease;
+  position: relative; z-index: 1;
+}
+.step-label {
+  font-size: .72rem; font-weight: 600;
+  color: var(--text-muted);
+  transition: color .35s ease;
+  white-space: nowrap;
+}
+.step-connector {
+  width: 120px; height: 2px;
+  background: var(--border-input);
+  margin-top: 17px;
+  flex-shrink: 0;
+  transition: background .35s ease;
+}
+.step-item.active .step-circle {
+  border-color: var(--rp);
+  background: linear-gradient(135deg, var(--rp), var(--rs));
+  color: white;
+  box-shadow: 0 0 0 4px var(--rp15);
+}
+.step-item.active .step-label { color: var(--rp); font-weight: 700; }
+.step-item.done .step-circle {
+  border-color: var(--rp);
+  background: linear-gradient(135deg, var(--rp), var(--rs));
+  color: white;
+}
+.step-item.done .step-label { color: var(--rp); }
+.step-connector.done { background: var(--rp); }
+
+body.dark .step-circle {
+  background: var(--bg-surface);
+  border-color: rgba(255,255,255,.18);
+  color: var(--text-muted);
+}
+body.dark .step-connector { background: rgba(255,255,255,.14); }
+body.dark .step-item.active .step-circle,
+body.dark .step-item.done  .step-circle {
+  background: linear-gradient(135deg, var(--rp), var(--rs));
+  border-color: var(--rp);
+  color: white;
+}
+body.dark .step-connector.done { background: var(--rp); }
+
+/* ── Upload zone pulse ──────────────────────────── */
+@keyframes zone-pulse {
+  0%, 100% { border-color: rgba(0,0,0,.18);       box-shadow: 0 0 0 0   var(--rp15); }
+  50%       { border-color: var(--rp);              box-shadow: 0 0 0 6px var(--rp15); }
+}
+@keyframes zone-pulse-dark {
+  0%, 100% { border-color: rgba(255,255,255,.16); box-shadow: 0 0 0 0   var(--rp15); }
+  50%       { border-color: var(--rp);             box-shadow: 0 0 0 6px var(--rp15); }
+}
+.upload-zone.pulsing            { animation: zone-pulse      2.8s ease-in-out infinite; }
+body.dark .upload-zone.pulsing  { animation: zone-pulse-dark 2.8s ease-in-out infinite; }
+
+/* Larger drop zone */
+#drop-zone { padding: 4.5rem 3rem; }
+
+/* ── File counter ───────────────────────────────── */
+.file-counter {
+  display: inline-flex; align-items: center; gap: .45rem;
+  font-size: .82rem; font-weight: 600;
+  color: var(--rp);
+  padding: .45rem 1.1rem;
+  background: var(--rp10);
+  border-radius: 9999px;
+  border: 1.5px solid var(--border);
+  transition: all .2s;
+}
+
+/* ── Slots remaining badge ──────────────────────── */
+.slots-badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-size: .78rem; font-weight: 600;
+  color: var(--text-secondary);
+  padding: .45rem 1rem;
+  background: var(--bg-surface);
+  border-radius: 9999px;
+  border: 1.5px solid var(--border-subtle);
+  transition: all .25s;
+}
+.slots-badge.warn {
+  color: #a16207;
+  background: rgba(234,179,8,.10);
+  border-color: rgba(234,179,8,.35);
+}
+body.dark .slots-badge { border-color: rgba(255,255,255,.12); }
+body.dark .slots-badge.warn {
+  color: #fbbf24;
+  background: rgba(234,179,8,.12);
+  border-color: rgba(234,179,8,.30);
+}
+
+/* ── Upload tip ─────────────────────────────────── */
+.upload-tip {
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+  font-size: .8rem; color: var(--text-muted);
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-6xl mx-auto px-8 py-10 space-y-8">
-  <div>
-    <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Start Analysis</h1>
+<div style="min-height:calc(100vh - 92px);display:flex;align-items:center;justify-content:center;padding:2.5rem 2rem;">
+<div style="width:100%;max-width:720px;">
+
+  <!-- Header -->
+  <div class="text-center mb-6">
+    <h1 class="font-heading text-3xl font-bold mb-1" style="color:var(--text-primary)">Start Analysis</h1>
     <p style="color:var(--text-secondary)">Upload micro-CT images for AI-driven periodontal assessment.</p>
   </div>
 
-  <div class="grid lg:grid-cols-2 gap-8">
-    <!-- Left: upload -->
-    <div class="space-y-6">
-      <div class="card p-6 space-y-5">
-        <div class="space-y-1">
-          <label class="text-sm font-medium" style="color:var(--text-primary)">Batch / Volume Title</label>
-          <input id="vol-title" class="input" placeholder="e.g. Patient Case #42"/>
-        </div>
-
-        <!-- Drop zone -->
-        <div id="drop-zone" class="upload-zone"
-          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"
-          onclick="document.getElementById('file-input').click()">
-          <i data-lucide="upload-cloud" class="w-12 h-12 mx-auto mb-3" style="color:var(--text-muted)"></i>
-          <p class="font-semibold text-lg" style="color:var(--text-primary)">Drop files here or click to browse</p>
-          <p class="text-sm mt-1" style="color:var(--text-muted)">TIFF, BMP, PNG, JPG, IIF — up to 50 MB</p>
-          <input id="file-input" type="file" accept="image/*,.tif,.tiff" multiple class="hidden" onchange="onFilesSelected(this.files)"/>
-        </div>
-
-        <!-- Thumbnails -->
-        <div id="thumb-grid" class="hidden grid grid-cols-3 gap-3"></div>
-
-        <!-- Alert -->
-        <div id="alert-box" class="hidden"></div>
-
-        <!-- Actions -->
-        <div class="flex gap-3">
-          <button onclick="startAnalysis()" class="btn-primary" id="btn-analyze">
-            <i data-lucide="cpu" class="w-4 h-4"></i> Start Analysis
-          </button>
-          <button onclick="clearAll()" class="btn-outline">
-            <i data-lucide="x" class="w-4 h-4"></i> Clear
-          </button>
-        </div>
-      </div>
+  <!-- Step Indicator -->
+  <div class="steps-row mb-8">
+    <div class="step-item active" id="step-upload">
+      <div class="step-circle" id="step-circle-1">1</div>
+      <span class="step-label">Upload</span>
     </div>
-
-    <!-- Right: progress + results -->
-    <div class="space-y-6">
-      <!-- Progress card -->
-      <div id="progress-card" class="card p-6 space-y-4 hidden">
-        <h3 class="font-heading font-semibold" style="color:var(--text-primary)">Analysis Progress</h3>
-        <div class="progress-track"><div class="progress-fill" id="p-bar" style="width:0%"></div></div>
-        <div class="flex justify-between text-sm">
-          <span id="p-text" style="color:var(--text-secondary)">Starting…</span>
-          <span id="p-pct" class="font-semibold" style="color:var(--rp)">0%</span>
-        </div>
-        <div class="flex items-center justify-center py-4" id="spinner-area">
-          <div class="spinner"></div>
-        </div>
-      </div>
-
-      <!-- Results preview -->
-      <div id="results-card" class="card p-6 space-y-4 hidden">
-        <h3 class="font-heading font-semibold" style="color:var(--text-primary)">Results Preview</h3>
-        <div id="results-list" class="space-y-3"></div>
-        <a href="/results" class="btn-primary w-full justify-center">
-          <i data-lucide="arrow-right" class="w-4 h-4"></i> View Full Results
-        </a>
-      </div>
+    <div class="step-connector" id="conn-1"></div>
+    <div class="step-item" id="step-analyze">
+      <div class="step-circle" id="step-circle-2">2</div>
+      <span class="step-label">Analyze</span>
+    </div>
+    <div class="step-connector" id="conn-2"></div>
+    <div class="step-item" id="step-results">
+      <div class="step-circle" id="step-circle-3">3</div>
+      <span class="step-label">Results</span>
     </div>
   </div>
+
+  <!-- Upload Card -->
+  <div class="card p-8 space-y-6">
+
+    <!-- Title (optional) -->
+    <div class="space-y-1">
+      <label class="text-sm font-medium" style="color:var(--text-primary)">
+        Batch / Volume Title
+        <span style="color:var(--text-muted);font-weight:400;font-size:.75rem;margin-left:.35rem">(optional)</span>
+      </label>
+      <input id="vol-title" class="input" placeholder="e.g. Patient Case #42"/>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="drop-zone" class="upload-zone pulsing"
+      ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"
+      onclick="document.getElementById('file-input').click()">
+      <i data-lucide="upload-cloud" class="w-14 h-14 mx-auto mb-3" style="color:var(--rp);opacity:.75"></i>
+      <p class="font-semibold text-lg" style="color:var(--text-primary)">Drop files here or click to browse</p>
+      <p class="text-sm mt-1" style="color:var(--text-muted)">TIFF, BMP, PNG, JPG, IIF — up to 50 MB per file</p>
+      <p class="text-xs mt-1" style="color:var(--text-muted);opacity:.75">Minimum 10 slices &nbsp;·&nbsp; Maximum 500 slices per volume</p>
+      <input id="file-input" type="file" accept="image/*,.tif,.tiff" multiple class="hidden"
+             onchange="onFilesSelected(this.files)"/>
+    </div>
+
+    <!-- File counter + slots remaining (shown after files selected) -->
+    <div id="file-counter-wrap" class="hidden">
+      <div style="display:flex;justify-content:center;align-items:center;gap:.6rem;flex-wrap:wrap">
+        <div class="file-counter">
+          <i data-lucide="files" style="width:14px;height:14px"></i>
+          <span id="file-counter-text">0 files selected</span>
+        </div>
+        <div class="slots-badge" id="slots-badge">
+          <i data-lucide="layers" style="width:13px;height:13px"></i>
+          <span id="slots-text">500 slots remaining</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tip -->
+    <div class="upload-tip">
+      <i data-lucide="lightbulb" style="width:13px;height:13px;color:var(--rp);opacity:.8;flex-shrink:0"></i>
+      <span>Tip: Upload slices in order for best results</span>
+    </div>
+
+    <!-- Preview Belt (hidden until files selected) -->
+    <div id="belt-outer" class="hidden space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="belt-count" id="belt-count">
+          <i data-lucide="images" style="width:12px;height:12px"></i>
+          <span id="belt-count-text">0 images</span>
+        </span>
+      </div>
+      <div class="belt-wrapper">
+        <button class="belt-arrow-btn" id="belt-left" onclick="scrollBelt(-1)" type="button">
+          <i data-lucide="chevron-left" style="width:13px;height:13px"></i>
+        </button>
+        <div class="belt-scroll" id="belt-scroll"></div>
+        <button class="belt-arrow-btn" id="belt-right" onclick="scrollBelt(1)" type="button">
+          <i data-lucide="chevron-right" style="width:13px;height:13px"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Alert -->
+    <div id="alert-box" class="hidden"></div>
+
+    <!-- Actions -->
+    <div class="flex gap-3">
+      <button onclick="startAnalysis()" class="btn-primary" id="btn-analyze" type="button">
+        <i data-lucide="cpu" class="w-4 h-4"></i> Start Analysis
+      </button>
+      <button onclick="clearAll()" class="btn-outline" type="button">
+        <i data-lucide="x" class="w-4 h-4"></i> Clear
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Progress card -->
+  <div id="progress-card" class="card p-6 space-y-4 hidden" style="margin-top:1.5rem">
+    <h3 class="font-heading font-semibold" style="color:var(--text-primary)">Analysis Progress</h3>
+    <div class="progress-track"><div class="progress-fill" id="p-bar" style="width:0%"></div></div>
+    <div class="flex justify-between text-sm">
+      <span id="p-text" style="color:var(--text-secondary)">Starting…</span>
+      <span id="p-pct" class="font-semibold" style="color:var(--rp)">0%</span>
+    </div>
+    <div class="flex items-center justify-center py-4" id="spinner-area">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+
+</div>
 </div>
 {% endblock %}
 
@@ -77,14 +330,94 @@
 <script>
 if (!Auth.user()) window.location.href = '/login';
 
+const MIN_FILES = 10;
+const MAX_FILES = 500;
+
 let files = [];
 
+/* ── Step Indicator ──────────────────────────────── */
+function setStep(n) {
+  ['step-upload','step-analyze','step-results'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active','done');
+    if (i + 1 === n) el.classList.add('active');
+    else if (i + 1 < n) el.classList.add('done');
+  });
+  ['conn-1','conn-2'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('done');
+    if (i + 2 <= n) el.classList.add('done');
+  });
+  for (let i = 1; i <= 3; i++) {
+    const circle = document.getElementById(`step-circle-${i}`);
+    if (i < n) {
+      circle.innerHTML = `<i data-lucide="check" style="width:14px;height:14px"></i>`;
+    } else {
+      circle.textContent = String(i);
+    }
+  }
+  lucide.createIcons();
+}
+
+/* ── Pulse management ────────────────────────────── */
+function updatePulse() {
+  const zone = document.getElementById('drop-zone');
+  if (!files.length) zone.classList.add('pulsing');
+  else zone.classList.remove('pulsing');
+}
+
+/* ── File counter + validation ───────────────────── */
+function updateFileCounter() {
+  const wrap       = document.getElementById('file-counter-wrap');
+  const text       = document.getElementById('file-counter-text');
+  const slotsBadge = document.getElementById('slots-badge');
+  const slotsText  = document.getElementById('slots-text');
+
+  if (!files.length) {
+    wrap.classList.add('hidden');
+    clearAlert();
+    return;
+  }
+
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+  const sizeStr = totalBytes >= 1024 * 1024
+    ? (totalBytes / (1024 * 1024)).toFixed(1) + ' MB'
+    : (totalBytes / 1024).toFixed(1) + ' KB';
+  text.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} selected \u2022 ${sizeStr}`;
+
+  const remaining = MAX_FILES - files.length;
+  if (remaining > 0) {
+    slotsText.textContent = `${remaining} slot${remaining !== 1 ? 's' : ''} remaining`;
+    slotsBadge.classList.remove('hidden');
+    slotsBadge.classList.toggle('warn', remaining <= 50);
+  } else {
+    slotsBadge.classList.add('hidden');
+  }
+
+  wrap.classList.remove('hidden');
+
+  // Live validation feedback
+  if (files.length > MAX_FILES) {
+    showAlert('Maximum 500 slices per volume. Please reduce your selection', 'error');
+  } else if (files.length < MIN_FILES) {
+    showAlert('Please upload at least 10 slices for accurate analysis', 'error');
+  } else {
+    clearAlert();
+  }
+
+  lucide.createIcons();
+}
+
+/* ── Drag & Drop ─────────────────────────────── */
 function onDragOver(e) {
   e.preventDefault();
-  document.getElementById('drop-zone').classList.add('drag-over');
+  const zone = document.getElementById('drop-zone');
+  zone.classList.add('drag-over');
+  zone.classList.remove('pulsing');
 }
 function onDragLeave() {
   document.getElementById('drop-zone').classList.remove('drag-over');
+  updatePulse();
 }
 function onDrop(e) {
   e.preventDefault();
@@ -92,90 +425,196 @@ function onDrop(e) {
   onFilesSelected(e.dataTransfer.files);
 }
 function onFilesSelected(list) {
-  files = Array.from(list);
-  renderThumbs();
+  const incoming = Array.from(list);
+  const existingNames = new Set(files.map(f => f.name + f.size));
+  incoming.forEach(f => {
+    if (!existingNames.has(f.name + f.size)) files.push(f);
+  });
+  renderBelt();
+  updateFileCounter();
+  updatePulse();
 }
 
-function renderThumbs() {
-  const grid = document.getElementById('thumb-grid');
-  grid.innerHTML = '';
-  grid.classList.toggle('hidden', files.length === 0);
-  files.forEach(f => {
-    const div = document.createElement('div');
-    div.className = 'rounded-lg overflow-hidden border' ;
-    div.style.borderColor = 'var(--border-subtle)';
-    const ext = f.name.split('.').pop().toLowerCase();
-    if (['png','jpg','jpeg','bmp'].includes(ext)) {
-      const url = URL.createObjectURL(f);
-      div.innerHTML = `<img src="${url}" class="w-full h-24 object-cover"/><p class="text-xs px-2 py-1 truncate font-mono" style="color:var(--text-muted)">${esc(f.name)}</p>`;
-    } else {
-      div.innerHTML = `<div class="w-full h-24 flex items-center justify-center" style="background:var(--bg-surface)"><i data-lucide="file-scan" class="w-8 h-8" style="color:var(--text-muted)"></i></div><p class="text-xs px-2 py-1 truncate font-mono" style="color:var(--text-muted)">${esc(f.name)}</p>`;
-    }
-    grid.appendChild(div);
+/* ── Preview Belt ────────────────────────────── */
+function renderBelt() {
+  const outer  = document.getElementById('belt-outer');
+  const scroll = document.getElementById('belt-scroll');
+
+  if (!files.length) { outer.classList.add('hidden'); return; }
+
+  document.getElementById('belt-count-text').textContent =
+    `${files.length} image${files.length !== 1 ? 's' : ''}`;
+  outer.classList.remove('hidden');
+  scroll.innerHTML = '';
+
+  files.forEach((f, i) => {
+    const card = document.createElement('div');
+    card.className = 'thumb-card';
+    card.style.animationDelay = `${i * 30}ms`;
+
+    const ext   = f.name.split('.').pop().toLowerCase();
+    const isImg = ['png','jpg','jpeg','bmp'].includes(ext);
+
+    card.innerHTML = `
+      <button class="thumb-rm" onclick="removeFile(${i})" type="button" title="Remove">×</button>
+      <div class="thumb-img" onclick="previewFile(${i})" title="${esc(f.name)}">
+        ${isImg
+          ? `<img src="${URL.createObjectURL(f)}" draggable="false"/>`
+          : `<i data-lucide="file-scan" style="width:26px;height:26px;color:var(--rp)"></i>`}
+      </div>
+      <p class="thumb-name">${esc(f.name)}</p>`;
+
+    scroll.appendChild(card);
   });
+
+  lucide.createIcons();
+  initBeltDrag();
+}
+
+function removeFile(index) {
+  files.splice(index, 1);
+  renderBelt();
+  updateFileCounter();
+  updatePulse();
+}
+
+function previewFile(index) {
+  const f   = files[index];
+  const ext = f.name.split('.').pop().toLowerCase();
+
+  if (['png','jpg','jpeg','bmp'].includes(ext)) {
+    showModal(`
+      <div style="max-width:100%">
+        <div class="flex items-center justify-between mb-3">
+          <p class="font-semibold text-sm font-mono" style="color:var(--text-primary);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</p>
+          <button onclick="closeModal()" class="btn-ghost" style="padding:.25rem .5rem;flex-shrink:0">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <img src="${URL.createObjectURL(f)}"
+             style="width:100%;border-radius:10px;max-height:62vh;object-fit:contain;background:var(--bg-surface)"/>
+        <p class="text-xs text-center mt-2" style="color:var(--text-muted)">${(f.size/1024).toFixed(1)} KB</p>
+      </div>`);
+  } else {
+    showModal(`
+      <div class="text-center space-y-4 py-4">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style="background:var(--rp15)">
+          <i data-lucide="file-scan" class="w-8 h-8" style="color:var(--rp)"></i>
+        </div>
+        <p class="font-semibold font-mono text-sm" style="color:var(--text-primary)">${esc(f.name)}</p>
+        <p class="text-sm" style="color:var(--text-secondary)">${(f.size/1024).toFixed(1)} KB</p>
+        <button onclick="closeModal()" class="btn-outline">Close</button>
+      </div>`);
+  }
   lucide.createIcons();
 }
 
-async function startAnalysis() {
-  if (!files.length) { showAlert('Please select at least one file.','error'); return; }
-  const title = document.getElementById('vol-title').value.trim() || `Batch-${Date.now()}`;
-  document.getElementById('progress-card').classList.remove('hidden');
-  document.getElementById('results-card').classList.add('hidden');
-  setP(0,'Uploading files…');
+function scrollBelt(dir) {
+  document.getElementById('belt-scroll').scrollBy({ left: dir * 220, behavior: 'smooth' });
+}
 
-  const resultsList = document.getElementById('results-list');
-  resultsList.innerHTML = '';
+function initBeltDrag() {
+  const el = document.getElementById('belt-scroll');
+  if (el._dragReady) return;
+  el._dragReady = true;
+
+  let down = false, startX, scrollLeft;
+
+  el.addEventListener('mousedown', e => {
+    down = true; el.classList.add('grabbing');
+    startX = e.pageX - el.offsetLeft; scrollLeft = el.scrollLeft;
+  });
+  el.addEventListener('mousemove', e => {
+    if (!down) return;
+    el.scrollLeft = scrollLeft - (e.pageX - el.offsetLeft - startX);
+  });
+  ['mouseup','mouseleave'].forEach(ev =>
+    el.addEventListener(ev, () => { down = false; el.classList.remove('grabbing'); }));
+
+  let tsX, tsScroll;
+  el.addEventListener('touchstart', e => {
+    tsX = e.touches[0].pageX - el.offsetLeft; tsScroll = el.scrollLeft;
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    el.scrollLeft = tsScroll - (e.touches[0].pageX - el.offsetLeft - tsX);
+  }, { passive: true });
+}
+
+/* ── Analysis ────────────────────────────────── */
+async function startAnalysis() {
+  if (!files.length || files.length < MIN_FILES) {
+    showAlert('Please upload at least 10 slices for accurate analysis', 'error');
+    return;
+  }
+  if (files.length > MAX_FILES) {
+    showAlert('Maximum 500 slices per volume. Please reduce your selection', 'error');
+    return;
+  }
+
+  const title = document.getElementById('vol-title').value.trim();
+  const btn   = document.getElementById('btn-analyze');
+
+  setStep(2);
+  document.getElementById('progress-card').classList.remove('hidden');
+  document.getElementById('spinner-area').innerHTML = '<div class="spinner"></div>';
+  clearAlert();
+  setP(0, 'Preparing batch…');
+  btn.disabled = true;
+
+  const form = new FormData();
+  files.forEach(f => form.append('scans', f));
+  form.append('title', title);
+
+  setP(25, `Uploading ${files.length} image${files.length !== 1 ? 's' : ''}…`);
+
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), 5 * 60 * 1000);
 
   try {
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      setP(Math.round((i/files.length)*55), `Uploading ${f.name}…`);
-      const form = new FormData();
-      form.append('scan', f);
-      form.append('title', title);
-      const res = await fetch('/api/scans/upload', {
-        method:'POST', headers:{'Authorization':`Bearer ${Auth.token()}`}, body:form
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+    const res  = await fetch('/api/scans/upload-batch', {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${Auth.token()}` },
+      body:    form,
+      signal:  controller.signal,
+    });
+    clearTimeout(timeoutId);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Upload failed');
 
-      // Result card
-      const r = data.results;
-      const bclass = r.severity === 'severe' ? 'badge-severe' : r.severity === 'moderate' ? 'badge-moderate' : 'badge-mild';
-      const el = document.createElement('div');
-      el.className = 'card p-4 space-y-2';
-      el.innerHTML = `
-        <div class="flex items-center justify-between">
-          <span class="font-mono text-xs truncate" style="color:var(--text-secondary)">${esc(f.name)}</span>
-          <span class="badge ${bclass}">${r.severity}</span>
-        </div>
-        <div class="grid grid-cols-3 gap-2 text-xs text-center">
-          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold" style="color:var(--rp)">${r.BV_mm3}</p><p style="color:var(--text-muted)">BV mm³</p></div>
-          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold" style="color:var(--rp)">${r.TV_mm3}</p><p style="color:var(--text-muted)">TV mm³</p></div>
-          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold" style="color:var(--rp)">${r.BV_TV}</p><p style="color:var(--text-muted)">BV/TV</p></div>
-        </div>`;
-      resultsList.appendChild(el);
-    }
-
-    setP(80,'Running segmentation…'); await sleep(700);
-    setP(100,'Analysis complete!');
-    document.getElementById('spinner-area').innerHTML = `<i data-lucide="check-circle" class="w-10 h-10" style="color:#22c55e"></i>`;
-    document.getElementById('results-card').classList.remove('hidden');
+    setP(80, 'Running segmentation…');
+    await sleep(600);
+    setP(100, 'Analysis complete!');
+    setStep(3);
+    document.getElementById('spinner-area').innerHTML =
+      `<i data-lucide="check-circle" class="w-10 h-10" style="color:#22c55e"></i>`;
     lucide.createIcons();
-    showAlert('Analysis complete! Results saved.','success');
+    showAlert('Analysis complete! Opening your results…', 'success');
+    await sleep(1200);
+    window.location.href = `/scan/${data.batchId}`;
+
   } catch(err) {
-    showAlert(err.message,'error');
-    setP(0,'');
+    clearTimeout(timeoutId);
+    const msg = err.name === 'AbortError'
+      ? 'Analysis is taking longer than expected. Please check Results page or try again.'
+      : err.message;
+    showAlert(msg, 'error');
+    setP(0, '');
+    document.getElementById('spinner-area').innerHTML = '<div class="spinner" style="display:none"></div>';
     document.getElementById('progress-card').classList.add('hidden');
+    setStep(1);
+  } finally {
+    btn.disabled = false;
   }
 }
 
+/* ── Helpers ─────────────────────────────────── */
 function clearAll() {
   files = [];
-  document.getElementById('thumb-grid').innerHTML = '';
-  document.getElementById('thumb-grid').classList.add('hidden');
+  renderBelt();
+  updateFileCounter();
+  updatePulse();
+  setStep(1);
   document.getElementById('progress-card').classList.add('hidden');
-  document.getElementById('results-card').classList.add('hidden');
   document.getElementById('vol-title').value = '';
   document.getElementById('alert-box').classList.add('hidden');
   document.getElementById('spinner-area').innerHTML = '<div class="spinner"></div>';
@@ -186,13 +625,19 @@ function setP(pct, text) {
   document.getElementById('p-pct').textContent  = pct + '%';
   document.getElementById('p-text').textContent = text;
 }
+
 function showAlert(msg, type) {
   const el = document.getElementById('alert-box');
   el.textContent = msg;
-  el.className = type === 'error' ? 'alert-error' : 'alert-success';
+  el.className   = type === 'error' ? 'alert-error' : 'alert-success';
   el.classList.remove('hidden');
 }
-function sleep(ms) { return new Promise(r => setTimeout(r,ms)); }
+function clearAlert() {
+  const el = document.getElementById('alert-box');
+  el.className = 'hidden';
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 lucide.createIcons();
 </script>

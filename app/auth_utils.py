@@ -3,6 +3,7 @@ app/auth_utils.py  –  JWT creation/verification + bcrypt helpers.
 """
 
 import os, re
+from typing import Optional
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -27,7 +28,7 @@ def hash_password(plain: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
-def validate_password(password: str) -> str | None:
+def validate_password(password: str) -> Optional[str]:
     """Return error message or None if valid."""
     if not password or len(password) < 8:
         return "Password must be at least 8 characters long."

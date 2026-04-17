@@ -90,7 +90,7 @@
 if (!Auth.user()) window.location.href = '/login';
 async function load() {
   try {
-    const scans = await api('/api/scans/my-scans');
+    const scans = await api('/api/scans/my-batches');
     document.getElementById('loading').classList.add('hidden');
     if (!scans.length) { document.getElementById('empty').classList.remove('hidden'); return; }
     const grid = document.getElementById('results-grid');
@@ -98,17 +98,25 @@ async function load() {
     grid.innerHTML = scans.map(s => {
       const sv = s.severity ?? 'pending';
       const bc = sv==='severe'?'badge-severe':sv==='moderate'?'badge-moderate':sv==='mild'?'badge-mild':'badge-pending';
-      return `<div class="card p-6 space-y-4">
+      return `<div class="card p-6 space-y-4" data-batch-id="${s.id}" data-batch-title="${esc(s.title)}">
         <div class="flex items-start justify-between gap-2">
-          <p class="font-medium truncate" style="color:var(--text-primary)">${esc(s.original_name)}</p>
-          <span class="badge ${bc} flex-shrink-0">${sv}</span>
+          <p class="font-medium truncate" style="color:var(--text-primary)">${esc(s.title)}</p>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <span class="badge ${bc}">${sv}</span>
+            <button onclick="openDeleteModal(${s.id})" title="Delete analysis"
+                    style="display:inline-flex;align-items:center;color:#dc2626;background:rgba(239,68,68,.08);border:none;padding:.3rem .35rem;border-radius:6px;cursor:pointer;transition:background .2s;line-height:1;"
+                    onmouseover="this.style.background='rgba(239,68,68,.2)'"
+                    onmouseout="this.style.background='rgba(239,68,68,.08)'">
+              <i data-lucide="trash-2" style="width:14px;height:14px;pointer-events:none"></i>
+            </button>
+          </div>
         </div>
-        <p class="text-xs font-mono" style="color:var(--text-muted)">${fmtDate(s.uploaded_at)}</p>
-        ${s.BV_mm3 ? `
+        <p class="text-xs font-mono" style="color:var(--text-muted)">${fmtDate(s.created_at)}</p>
+        ${s.bv_mm3 != null ? `
         <div class="grid grid-cols-3 gap-2 text-center">
-          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.BV_mm3}</p><p class="text-xs" style="color:var(--text-muted)">BV mm³</p></div>
-          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.TV_mm3}</p><p class="text-xs" style="color:var(--text-muted)">TV mm³</p></div>
-          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.BV_TV}</p><p class="text-xs" style="color:var(--text-muted)">BV/TV</p></div>
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.bv_mm3}</p><p class="text-xs" style="color:var(--text-muted)">BV mm³</p></div>
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.tv_mm3}</p><p class="text-xs" style="color:var(--text-muted)">TV mm³</p></div>
+          <div class="rounded-lg p-2" style="background:var(--bg-surface)"><p class="font-bold text-sm" style="color:var(--rp)">${s.bv_tv}</p><p class="text-xs" style="color:var(--text-muted)">BV/TV</p></div>
         </div>` : `<p class="text-sm text-center py-2" style="color:var(--text-muted)">Analysis pending…</p>`}
         <div class="flex gap-2">
           <a href="/scan/${s.id}" class="btn-primary flex-1 justify-center text-sm" style="padding:.4rem">
@@ -123,6 +131,55 @@ async function load() {
     lucide.createIcons();
   } catch(err) { document.getElementById('loading').innerHTML = `<p style="color:#dc2626">${err.message}</p>`; }
 }
+let _deleteBatchId = null;
+
+function openDeleteModal(batchId) {
+  _deleteBatchId = batchId;
+  const card = document.querySelector(`[data-batch-id="${batchId}"]`);
+  const title = card ? card.dataset.batchTitle : 'this analysis';
+  showModal(`
+    <div class="space-y-4">
+      <div class="flex items-center gap-3">
+        <div style="width:40px;height:40px;border-radius:50%;background:rgba(239,68,68,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i data-lucide="trash-2" style="width:18px;height:18px;color:#dc2626"></i>
+        </div>
+        <h3 class="font-heading text-lg font-bold" style="color:var(--text-primary)">Delete Analysis</h3>
+      </div>
+      <p style="color:var(--text-secondary)">Are you sure you want to delete <strong style="color:var(--text-primary)">${esc(title)}</strong>? This action cannot be undone.</p>
+      <div class="flex gap-2 justify-end pt-2">
+        <button onclick="closeModal()" class="btn-outline" style="padding:.45rem 1.1rem;font-size:.85rem">Cancel</button>
+        <button onclick="confirmDelete()" style="display:inline-flex;align-items:center;gap:.45rem;padding:.45rem 1.1rem;border-radius:9999px;border:none;font-weight:600;font-size:.85rem;cursor:pointer;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;box-shadow:0 4px 14px rgba(239,68,68,.25);transition:all .2s">
+          <i data-lucide="trash-2" style="width:14px;height:14px"></i> Delete
+        </button>
+      </div>
+    </div>`);
+}
+
+async function confirmDelete() {
+  try {
+    await api(`/api/scans/batch/${_deleteBatchId}`, { method: 'DELETE' });
+    closeModal();
+    const card = document.querySelector(`[data-batch-id="${_deleteBatchId}"]`);
+    if (card) {
+      card.style.transition = 'opacity .3s ease, transform .3s ease';
+      card.style.opacity = '0';
+      card.style.transform = 'scale(.95)';
+      setTimeout(() => {
+        card.remove();
+        const grid = document.getElementById('results-grid');
+        if (!grid.children.length) {
+          grid.classList.add('hidden');
+          document.getElementById('empty').classList.remove('hidden');
+        }
+      }, 300);
+    }
+    toast('Analysis deleted successfully');
+  } catch(e) {
+    closeModal();
+    toast(e.message, 'err');
+  }
+}
+
 let _reportScanId = null;
 
 function openReportModal(scanId) {

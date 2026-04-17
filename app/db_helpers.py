@@ -96,6 +96,104 @@ def verify_reset_token(token):
         print(f"verify_reset_token error: {e}")
         return None
 
+def mark_token_used(token):
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE password_reset_tokens SET used=TRUE WHERE token=%s',
+                    (token,)
+                )
+    except Exception as e:
+        print(f"mark_token_used error: {e}")
+        return None
+
+def save_batch(user_id, title, image_count, bv_mm3, tv_mm3, bv_tv, severity, diagnosis):
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'INSERT INTO batches (user_id,title,image_count,bv_mm3,tv_mm3,bv_tv,severity,diagnosis) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id',
+                    (user_id, title, image_count, bv_mm3, tv_mm3, bv_tv, severity, diagnosis)
+                )
+                return cur.fetchone()[0]
+    except Exception as e:
+        print(f"save_batch error: {e}")
+        return None
+
+def update_scan_batch(scan_id, batch_id):
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE scans SET batch_id=%s WHERE id=%s',
+                    (batch_id, scan_id)
+                )
+    except Exception as e:
+        print(f"update_scan_batch error: {e}")
+        return None
+
+def get_my_batches(user_id):
+    try:
+        with _conn() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT id,title,image_count,bv_mm3,tv_mm3,bv_tv,severity,diagnosis,created_at FROM batches WHERE user_id=%s ORDER BY created_at DESC',
+                    (user_id,)
+                )
+                return [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        print(f"get_my_batches error: {e}")
+        return None
+
+def delete_batch(batch_id, user_id):
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT id FROM batches WHERE id=%s AND user_id=%s', (batch_id, user_id))
+                if not cur.fetchone():
+                    return False
+                cur.execute('DELETE FROM results WHERE scan_id IN (SELECT id FROM scans WHERE batch_id=%s)', (batch_id,))
+                cur.execute('UPDATE issues SET scan_id=NULL WHERE scan_id IN (SELECT id FROM scans WHERE batch_id=%s)', (batch_id,))
+                cur.execute('DELETE FROM scans WHERE batch_id=%s', (batch_id,))
+                cur.execute('DELETE FROM batches WHERE id=%s AND user_id=%s', (batch_id, user_id))
+                return True
+    except Exception as e:
+        print(f"delete_batch error: {e}")
+        return False
+
+def get_batch_count(user_id):
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT COUNT(*) FROM batches WHERE user_id=%s', (user_id,))
+                return cur.fetchone()[0]
+    except Exception as e:
+        print(f"get_batch_count error: {e}")
+        return 0
+
+def get_batch_detail(batch_id, user_id):
+    try:
+        with _conn() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT id,title,image_count,bv_mm3,tv_mm3,bv_tv,severity,diagnosis,created_at FROM batches WHERE id=%s AND user_id=%s',
+                    (batch_id, user_id)
+                )
+                batch = cur.fetchone()
+                if not batch:
+                    return None
+                batch = dict(batch)
+                cur.execute(
+                    'SELECT id,original_name,uploaded_at FROM scans WHERE batch_id=%s ORDER BY uploaded_at ASC',
+                    (batch_id,)
+                )
+                batch['slices'] = [dict(r) for r in cur.fetchall()]
+                return batch
+    except Exception as e:
+        print(f"get_batch_detail error: {e}")
+        return None
+
 def save_contact_message(first_name, last_name, email, message):
     try:
         with _conn() as conn:

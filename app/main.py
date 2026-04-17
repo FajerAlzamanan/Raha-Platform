@@ -52,6 +52,14 @@ async def login_page(request: Request):
 async def signup_page(request: Request):
     return templates.TemplateResponse("auth/signup.html", {"request": request})
 
+@app.get("/forgot-password")
+async def forgot_password_page(request: Request):
+    return templates.TemplateResponse("auth/forgot_password.html", {"request": request})
+
+@app.get("/reset-password/{token}")
+async def reset_password_page(request: Request, token: str):
+    return templates.TemplateResponse("auth/reset_password.html", {"request": request, "token": token})
+
 @app.get("/analyze")
 async def analyze_page(request: Request):
     return templates.TemplateResponse("user/analyze.html", {"request": request})
@@ -95,6 +103,10 @@ async def admin_issues(request: Request):
 @app.get("/scan/{scan_id}")
 async def scan_detail_page(request: Request, scan_id: int):
     return templates.TemplateResponse("user/scan_detail.html", {"request": request, "scan_id": scan_id})
+
+@app.get("/batch/{batch_id}")
+async def batch_detail_page(request: Request, batch_id: int):
+    return templates.TemplateResponse("user/batch_detail.html", {"request": request, "batch_id": batch_id})
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=4000, reload=True)

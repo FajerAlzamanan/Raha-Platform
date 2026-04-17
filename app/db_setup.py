@@ -95,6 +95,26 @@ def create_tables():
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS batches (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                title TEXT,
+                image_count INTEGER DEFAULT 0,
+                bv_mm3 REAL,
+                tv_mm3 REAL,
+                bv_tv REAL,
+                severity TEXT,
+                diagnosis TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE scans ADD COLUMN IF NOT EXISTS
+                batch_id INTEGER REFERENCES batches(id) ON DELETE SET NULL
+        ''')
+
         conn.commit()
         print("All tables created!")
     except Exception as e:

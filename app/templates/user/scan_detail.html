@@ -376,11 +376,11 @@ let _compareTabReady = false;
 ────────────────────────────────────────────── */
 async function loadScanData() {
   try {
-    const data = await api(`/api/scans/results/${SCAN_ID}`);
+    const data = await api(`/api/scans/batch/${SCAN_ID}`);
     _scanData = data;
     renderMetrics(data);
     initNiivue(data);
-    initSeverityGauge(data.BV_TV);
+    initSeverityGauge(data.bv_tv);
     initZAxisPreview();
   } catch (err) {
     document.getElementById('analysis-loading').innerHTML =
@@ -393,13 +393,13 @@ async function loadScanData() {
 ────────────────────────────────────────────── */
 function renderMetrics(d) {
   // Header
-  document.getElementById('scan-title').textContent = esc(d.original_name ?? `Scan #${SCAN_ID}`);
-  document.getElementById('scan-date').textContent  = d.uploaded_at ? fmtDate(d.uploaded_at) : '';
+  document.getElementById('scan-title').textContent = esc(d.title ?? `Scan #${SCAN_ID}`);
+  document.getElementById('scan-date').textContent  = d.created_at ? fmtDate(d.created_at) : '';
 
   // Metrics
-  document.getElementById('val-bv').textContent   = d.BV_mm3 ?? '—';
-  document.getElementById('val-tv').textContent   = d.TV_mm3 ?? '—';
-  document.getElementById('val-bvtv').textContent = d.BV_TV  ?? '—';
+  document.getElementById('val-bv').textContent   = d.bv_mm3 ?? '—';
+  document.getElementById('val-tv').textContent   = d.tv_mm3 ?? '—';
+  document.getElementById('val-bvtv').textContent = d.bv_tv  ?? '—';
 
   // Diagnosis
   const diagnosis = d.diagnosis ?? 'Unknown';
@@ -594,11 +594,11 @@ function exportCSV() {
   const rows = [
     ['Field', 'Value'],
     ['Scan ID', SCAN_ID],
-    ['File Name', d.original_name ?? ''],
-    ['Uploaded At', d.uploaded_at ?? ''],
-    ['BV mm³', d.BV_mm3 ?? ''],
-    ['TV mm³', d.TV_mm3 ?? ''],
-    ['BV/TV', d.BV_TV ?? ''],
+    ['Analysis Title', d.title ?? ''],
+    ['Date', d.created_at ?? ''],
+    ['BV mm³', d.bv_mm3 ?? ''],
+    ['TV mm³', d.tv_mm3 ?? ''],
+    ['BV/TV', d.bv_tv ?? ''],
     ['Diagnosis', d.diagnosis ?? ''],
     ['Severity', d.severity ?? 'N/A'],
   ];
@@ -686,15 +686,14 @@ async function initCompareTab() {
   document.getElementById('compare-loading').classList.add('hidden');
   document.getElementById('compare-loading').style.display = 'none';
   try {
-    const scans = await api('/api/scans/my-scans');
+    const batches = await api('/api/scans/my-batches');
     const sel = document.getElementById('compare-select');
-    // Populate with all scans except the current one
-    scans
-      .filter(s => s.id !== SCAN_ID)
-      .forEach(s => {
+    batches
+      .filter(b => b.id !== SCAN_ID)
+      .forEach(b => {
         const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = `${esc(s.original_name)} — ${fmtDate(s.uploaded_at)}`;
+        opt.value = b.id;
+        opt.textContent = `${esc(b.title)} — ${fmtDate(b.created_at)}`;
         sel.appendChild(opt);
       });
   } catch(e) { toast('Could not load scan list: ' + e.message, 'err'); }
@@ -715,7 +714,7 @@ async function onCompareSelect(treatId) {
   document.getElementById('btn-clear-compare').classList.remove('hidden');
 
   try {
-    const data = await api(`/api/scans/compare?baseline_id=${SCAN_ID}&treatment_id=${treatId}`);
+    const data = await api(`/api/scans/compare-batches?baseline_id=${SCAN_ID}&treatment_id=${treatId}`);
     renderCompare(data, parseInt(treatId));
   } catch(e) {
     toast(e.message, 'err');
