@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Platform Manual – Raha{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-8 py-12 space-y-10">
+  <section class="relative overflow-hidden rounded-[2rem] border p-8 md:p-12" style="border-color:var(--border);background:linear-gradient(135deg,var(--bg-card) 0%, var(--surface) 100%)">
+    <div class="absolute -top-16 -right-10 h-48 w-48 rounded-full" style="background:var(--rp15);filter:blur(24px)"></div>
+    <div class="absolute -bottom-12 -left-8 h-40 w-40 rounded-full" style="background:var(--rp10);filter:blur(20px)"></div>
+    <div class="relative z-10 max-w-3xl space-y-5">
+      <span class="badge" style="background:var(--rp10);color:var(--rp)">User Guide</span>
+      <h1 class="font-heading text-4xl md:text-5xl font-bold tracking-tight" style="color:var(--text-primary)">
+        Raha Platform <span style="color:var(--rp)">Manual</span>
+      </h1>
+      <p class="text-lg leading-relaxed" style="color:var(--text-secondary)">
+        This manual walks you through the full Raha workflow, from account access and password recovery to scan analysis, result review, and admin monitoring.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a href="#quick-start" class="btn-primary">Quick Start <i data-lucide="arrow-down" class="w-4 h-4"></i></a>
+        <a href="/contact" class="btn-outline">Need Support?</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="quick-start" class="grid lg:grid-cols-[1.2fr_.8fr] gap-6">
+    <div class="card p-8 space-y-5">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:var(--rp10)">
+          <i data-lucide="sparkles" class="w-6 h-6" style="color:var(--rp)"></i>
+        </div>
+        <div>
+          <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Quick Start</h2>
+          <p class="text-sm" style="color:var(--text-secondary)">The fastest path for a new user.</p>
+        </div>
+      </div>
+      <div class="space-y-4">
+        {% for num, title, body in [
+          ('1','Create an account','Open Sign Up, enter your name, institutional email, role, gender, and a strong password.'),
+          ('2','Log in securely','Use your registered email and password on the Login page to access the researcher workspace.'),
+          ('3','Start an analysis','Open Start Analyze, upload your supported scan files, give the batch a title, and launch the AI run.'),
+          ('4','Review outputs','Visit View Results to inspect BV/TV values, severity labels, diagnosis text, and batch history.'),
+          ('5','Manage your account','Update your profile details, change your avatar, or use Forgot Password if access is lost.')
+        ] %}
+        <div class="flex gap-4 items-start">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-heading font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,var(--rp),var(--rs))">{{ num }}</div>
+          <div class="space-y-1">
+            <h3 class="font-heading text-lg font-bold" style="color:var(--text-primary)">{{ title }}</h3>
+            <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">{{ body }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card p-8 space-y-5" style="background:var(--bg-card-glass);backdrop-filter:blur(10px)">
+      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Supported Areas</h2>
+      <div class="grid gap-3">
+        {% for icon, title in [
+          ('shield-check','Authentication'),
+          ('scan-search','Scan Analysis'),
+          ('bar-chart-3','Result Review'),
+          ('user-circle','Profile Management'),
+          ('settings-2','Admin Oversight')
+        ] %}
+        <div class="flex items-center gap-3 rounded-2xl px-4 py-3" style="background:var(--surface)">
+          <i data-lucide="{{ icon }}" class="w-5 h-5" style="color:var(--rp)"></i>
+          <span class="font-medium" style="color:var(--text-primary)">{{ title }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">
+        Supported researcher pages include <strong>Analyze</strong>, <strong>Results</strong>, <strong>Learn</strong>, and <strong>Profile</strong>. Administrative pages include user, issue, and log monitoring.
+      </p>
+    </div>
+  </section>
+
+  <section class="space-y-5">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background:var(--rp10)">
+        <i data-lucide="book-open" class="w-5 h-5" style="color:var(--rp)"></i>
+      </div>
+      <div>
+        <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Detailed Workflows</h2>
+        <p class="text-sm" style="color:var(--text-secondary)">Step-by-step instructions for the main parts of the platform.</p>
+      </div>
+    </div>
+
+    <div class="grid gap-5">
+      {% for icon, title, steps in [
+        ('user-plus','1. Account Registration', [
+          'Open the Sign Up page from the home screen or navbar.',
+          'Select your title, enter your full name, institution, professional role, gender, and email address.',
+          'Create a password with at least 8 characters, one uppercase letter, and one number.',
+          'Submit the form and use the login page once your registration succeeds.'
+        ]),
+        ('log-in','2. Login and Access', [
+          'Open the Login page and enter your registered email address and password.',
+          'Use Remember Me if you want the session stored in local storage on your machine.',
+          'After successful login, the platform redirects you to the main dashboard.'
+        ]),
+        ('key-round','3. Password Reset', [
+          'Open Forgot Password from the login screen.',
+          'Enter your registered email address and submit the request.',
+          'Check your email for the reset link, then open the reset page.',
+          'Enter a new valid password and confirm it to finish the reset.'
+        ]),
+        ('upload-cloud','4. Upload and Analyze Scans', [
+          'Open Start Analyze and upload supported micro-CT image files.',
+          'Provide a meaningful batch title so you can identify the run later.',
+          'Start the analysis and wait for the platform to complete processing.',
+          'Use the batch and scan detail views to inspect processed outputs.'
+        ]),
+        ('file-bar-chart','5. Review Results', [
+          'Open View Results to review completed scan sessions.',
+          'Inspect quantitative outputs such as BV, TV, and BV/TV.',
+          'Review severity and diagnostic descriptions generated by the system.',
+          'Open individual scan or batch detail pages for deeper review.'
+        ]),
+        ('user-round-cog','6. Profile and Support', [
+          'Open Profile to review your account information and avatar.',
+          'Use Contact Us when you need help, want to report an issue, or have a question for the team.',
+          'Use Guides & Tutorials for shorter onboarding help alongside this manual.'
+        ])
+      ] %}
+      <article class="card p-7 space-y-5">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:var(--rp10)">
+            <i data-lucide="{{ icon }}" class="w-6 h-6" style="color:var(--rp)"></i>
+          </div>
+          <h3 class="font-heading text-xl font-bold" style="color:var(--text-primary)">{{ title }}</h3>
+        </div>
+        <div class="grid md:grid-cols-2 gap-3">
+          {% for step in steps %}
+          <div class="rounded-2xl border px-4 py-4 text-sm leading-relaxed" style="border-color:var(--border);background:var(--bg-surface);color:var(--text-secondary)">
+            {{ step }}
+          </div>
+          {% endfor %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="grid lg:grid-cols-2 gap-6">
+    <div class="card p-8 space-y-4">
+      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Admin Notes</h2>
+      <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">
+        Admin users can review platform activity from the dashboard, monitor issues reported by researchers, inspect system logs, and manage registered user accounts.
+      </p>
+      <div class="space-y-3">
+        {% for item in [
+          'Users: review and manage registered accounts.',
+          'Issues: inspect reported scan or workflow problems.',
+          'Logs: audit sign-ins and other tracked system events.'
+        ] %}
+        <div class="flex items-start gap-3">
+          <i data-lucide="check-circle-2" class="w-5 h-5 mt-0.5" style="color:var(--rp)"></i>
+          <p class="text-sm" style="color:var(--text-secondary)">{{ item }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card p-8 space-y-4">
+      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Troubleshooting</h2>
+      <div class="space-y-4">
+        {% for q, a in [
+          ('Cannot log in?','Check that your email is registered and your password matches the platform rules. Use Forgot Password if needed.'),
+          ('Reset email not arriving?','Confirm the configured Gmail SMTP account is active and the app password is correct, then try again.'),
+          ('Analysis not visible?','Wait for the batch to finish, then refresh Results or open the related batch detail page.'),
+          ('Need help?','Use the Contact Us page so the support team can review the problem and respond.')
+        ] %}
+        <details class="rounded-2xl border px-4 py-4 group" style="border-color:var(--border);background:var(--bg-surface)">
+          <summary class="list-none cursor-pointer font-semibold flex items-center justify-between" style="color:var(--text-primary)">
+            {{ q }}
+            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180" style="color:var(--text-muted)"></i>
+          </summary>
+          <p class="mt-3 text-sm leading-relaxed" style="color:var(--text-secondary)">{{ a }}</p>
+        </details>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+lucide.createIcons();
+</script>
+{% endblock %}

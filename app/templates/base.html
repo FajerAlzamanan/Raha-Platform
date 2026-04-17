@@ -451,6 +451,7 @@ function buildNav() {
   if (!u) {
     links.innerHTML = `
       <a href="/"       class="nav-link">Home</a>
+      <a href="/manual" class="nav-link">Manual</a>
       <a href="/about"  class="nav-link">About Us</a>
       <a href="/contact"class="nav-link">Contact Us</a>`;
     actions.innerHTML = `
@@ -461,6 +462,7 @@ function buildNav() {
       <a href="/"        class="nav-link">Home</a>
       <a href="/analyze" class="nav-link">Start Analyze</a>
       <a href="/results" class="nav-link">View Results</a>
+      <a href="/manual"  class="nav-link">Manual</a>
       <a href="/learn"   class="nav-link">Guides & Tutorials</a>
       <a href="/contact" class="nav-link">Contact Us</a>`;
     actions.innerHTML = `
@@ -469,6 +471,7 @@ function buildNav() {
   } else if (u.role === 'admin') {
     links.innerHTML = `
       <a href="/"            class="nav-link">Home</a>
+      <a href="/manual"      class="nav-link">Manual</a>
       <a href="/admin/users" class="nav-link">Users</a>
       <a href="/admin/issues"class="nav-link">Issues</a>
       <a href="/admin/logs"  class="nav-link">Logs</a>`;

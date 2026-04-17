@@ -84,6 +84,10 @@ async def contact_page(request: Request):
 async def about_page(request: Request):
     return templates.TemplateResponse("shared/about.html", {"request": request})
 
+@app.get("/manual")
+async def manual_page(request: Request):
+    return templates.TemplateResponse("shared/manual.html", {"request": request})
+
 @app.get("/admin/dashboard")
 async def admin_dashboard(request: Request):
     return templates.TemplateResponse("admin/dashboard.html", {"request": request})

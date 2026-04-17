@@ -4,103 +4,44 @@ app/routes/auth.py  –  /api/auth/signup, /api/auth/login,
 Uses your team's db_helpers: create_user(), get_user(), log_event()
 """
 
-import os, secrets
+import os
+import secrets
+import smtplib
+import ssl
 from datetime import datetime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-import resend
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from dotenv import load_dotenv
 
 from app.db_helpers import create_user, get_user, get_user_by_id, log_event, \
-    save_reset_token, verify_reset_token, mark_token_used, update_user
+    save_reset_token, verify_reset_token, mark_token_used, mark_user_reset_tokens_used, update_user
 from app.auth_utils import hash_password, verify_password, validate_password, create_token
 
 load_dotenv()
-resend.api_key = os.getenv("RESEND_API_KEY", "")
-MAIL_FROM = os.getenv("MAIL_FROM", "noreply@raha.com")
+MAIL_FROM = os.getenv("MAIL_FROM", "").strip()
+GMAIL_SMTP_USER = os.getenv("GMAIL_SMTP_USER", "").strip() or MAIL_FROM
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "").strip()
 
 router = APIRouter()
 
 
-class SignupRequest(BaseModel):
-    full_name: str
-    email: EmailStr
-    password: str
-    title: str | None = None
-    gender: str | None = None
-    institution: str | None = None       # stored in professional_role field
-    professional_role: str | None = None
+def _get_base_url(request: Request) -> str:
+    configured = os.getenv("BASE_URL", "").strip()
+    if configured:
+        return configured.rstrip("/")
+    return str(request.base_url).rstrip("/")
 
 
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-@router.post("/signup", status_code=201)
-def signup(body: SignupRequest):
-    err = validate_password(body.password)
-    if err:
-        raise HTTPException(400, err)
-
-    if get_user(body.email):
-        raise HTTPException(400, "Email already registered")
-
-    pw_hash = hash_password(body.password)
-    create_user(
-        full_name=body.full_name,
-        email=body.email,
-        password_hash=pw_hash,
-        role="researcher",
-        gender=body.gender,
-        title=body.title,
-        professional_role=body.professional_role,
-    )
-    return {"message": "Account created"}
-
-
-@router.post("/login")
-def login(body: LoginRequest):
-    user = get_user(body.email)
-    if not user:
-        raise HTTPException(400, "Invalid credentials")
-    if not verify_password(body.password, user["password_hash"]):
-        raise HTTPException(400, "Invalid credentials")
-
-    log_event(user["id"], "login", f"{user['email']} logged in")
-
-    token = create_token(user["id"], user["role"])
-    return {
-        "token": token,
-        "role": user["role"],
-        "full_name": user["full_name"],
-    }
-
-
-class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
-
-
-class ResetPasswordRequest(BaseModel):
-    token: str
-    password: str
-
-
-@router.post("/forgot-password")
-def forgot_password(body: ForgotPasswordRequest):
-    user = get_user(body.email)
-    # Always return the same message to avoid leaking whether an email exists
-    generic = {"message": "If that email is registered, you will receive a reset link shortly."}
-    if not user:
-        return generic
-
-    token = secrets.token_urlsafe(32)
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-    save_reset_token(user["id"], token, expires_at)
-
-    base_url = os.getenv("BASE_URL", "http://localhost:4000")
-    reset_link = f"{base_url}/reset-password/{token}"
+def _send_reset_email(user: dict, reset_link: str) -> None:
+    if not MAIL_FROM:
+        raise RuntimeError("MAIL_FROM is not configured")
+    if not GMAIL_SMTP_USER:
+        raise RuntimeError("GMAIL_SMTP_USER is not configured")
+    if not GMAIL_APP_PASSWORD:
+        raise RuntimeError("GMAIL_APP_PASSWORD is not configured")
 
     html_body = f"""
 <!DOCTYPE html>
@@ -190,18 +131,115 @@ def forgot_password(body: ForgotPasswordRequest):
 </html>
 """
 
+    plain_body = (
+        f"Hi {user['full_name']},\n\n"
+        "We received a request to reset the password for your Raha account.\n"
+        f"Use this link to choose a new password: {reset_link}\n\n"
+        "This link will expire in 1 hour.\n\n"
+        "If you did not request this, you can safely ignore this email."
+    )
+
+    message = MIMEMultipart("alternative")
+    message["Subject"] = "Reset Your Raha Password"
+    message["From"] = MAIL_FROM
+    message["To"] = user["email"]
+    message.attach(MIMEText(plain_body, "plain", "utf-8"))
+    message.attach(MIMEText(html_body, "html", "utf-8"))
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
+        server.ehlo()
+        server.starttls(context=context)
+        server.ehlo()
+        server.login(GMAIL_SMTP_USER, GMAIL_APP_PASSWORD)
+        server.sendmail(MAIL_FROM, [user["email"]], message.as_string())
+
+
+class SignupRequest(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+    title: str | None = None
+    gender: str | None = None
+    institution: str | None = None       # stored in professional_role field
+    professional_role: str | None = None
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+@router.post("/signup", status_code=201)
+def signup(body: SignupRequest):
+    err = validate_password(body.password)
+    if err:
+        raise HTTPException(400, err)
+
+    if get_user(body.email):
+        raise HTTPException(400, "Email already registered")
+
+    pw_hash = hash_password(body.password)
+    create_user(
+        full_name=body.full_name,
+        email=body.email,
+        password_hash=pw_hash,
+        role="researcher",
+        gender=body.gender,
+        title=body.title,
+        professional_role=body.professional_role,
+    )
+    return {"message": "Account created"}
+
+
+@router.post("/login")
+def login(body: LoginRequest):
+    user = get_user(body.email)
+    if not user:
+        raise HTTPException(400, "Invalid credentials")
+    if not verify_password(body.password, user["password_hash"]):
+        raise HTTPException(400, "Invalid credentials")
+
+    log_event(user["id"], "login", f"{user['email']} logged in")
+
+    token = create_token(user["id"], user["role"])
+    return {
+        "token": token,
+        "role": user["role"],
+        "full_name": user["full_name"],
+    }
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordRequest, request: Request):
+    user = get_user(body.email)
+    # Always return the same message to avoid leaking whether an email exists
+    generic = {"message": "If that email is registered, you will receive a reset link shortly."}
+    if not user:
+        return generic
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    save_reset_token(user["id"], token, expires_at)
+
+    reset_link = f"{_get_base_url(request)}/reset-password/{token}"
     try:
-        resend.Emails.send({
-            "from": MAIL_FROM,
-            "to": [user["email"]],
-            "subject": "Reset Your Raha Password",
-            "html": html_body,
-        })
+        _send_reset_email(user, reset_link)
     except Exception as e:
         print(f"forgot_password email error: {e}")
-        # Still return generic message – don't expose internal errors
+        raise HTTPException(500, "Unable to send reset email. Check Gmail SMTP configuration.")
+    log_event(user["id"], "password_reset_requested", f"{user['email']} requested a password reset")
 
-    return generic
+    return {"message": "If that email is registered, you will receive a reset link shortly."}
 
 
 @router.post("/reset-password")
@@ -217,6 +255,7 @@ def reset_password(body: ResetPasswordRequest):
     pw_hash = hash_password(body.password)
     update_user(record["user_id"], {"password_hash": pw_hash})
     mark_token_used(body.token)
+    mark_user_reset_tokens_used(record["user_id"], exclude_token=body.token)
 
     user = get_user_by_id(record["user_id"])
     if user:

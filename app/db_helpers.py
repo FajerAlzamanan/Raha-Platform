@@ -75,6 +75,10 @@ def save_reset_token(user_id, token, expires_at):
         with _conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
+                    'UPDATE password_reset_tokens SET used=TRUE WHERE user_id=%s AND used=FALSE',
+                    (user_id,)
+                )
+                cur.execute(
                     'INSERT INTO password_reset_tokens (user_id,token,expires_at) VALUES (%s,%s,%s)',
                     (user_id, token, expires_at)
                 )
@@ -106,6 +110,24 @@ def mark_token_used(token):
                 )
     except Exception as e:
         print(f"mark_token_used error: {e}")
+        return None
+
+def mark_user_reset_tokens_used(user_id, exclude_token=None):
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                if exclude_token:
+                    cur.execute(
+                        'UPDATE password_reset_tokens SET used=TRUE WHERE user_id=%s AND token<>%s AND used=FALSE',
+                        (user_id, exclude_token)
+                    )
+                else:
+                    cur.execute(
+                        'UPDATE password_reset_tokens SET used=TRUE WHERE user_id=%s AND used=FALSE',
+                        (user_id,)
+                    )
+    except Exception as e:
+        print(f"mark_user_reset_tokens_used error: {e}")
         return None
 
 def save_batch(user_id, title, image_count, bv_mm3, tv_mm3, bv_tv, severity, diagnosis):
