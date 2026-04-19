@@ -496,6 +496,7 @@ function doLogout() {
   setTimeout(() => window.location.href = '/login', 2000);
 }
 
+
 /* ── API ── */
 async function api(path, opts = {}) {
   const res = await fetch(path, { headers: Auth.headers(), ...opts });
