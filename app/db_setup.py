@@ -115,6 +115,22 @@ def create_tables():
                 batch_id INTEGER REFERENCES batches(id) ON DELETE SET NULL
         ''')
 
+        cursor.execute('''
+            ALTER TABLE scans ADD COLUMN IF NOT EXISTS base_scan_path TEXT
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE scans ADD COLUMN IF NOT EXISTS ai_mask_path TEXT
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE results ADD COLUMN IF NOT EXISTS tb_th REAL
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE results ADD COLUMN IF NOT EXISTS tb_sp REAL
+        ''')
+
         conn.commit()
         print("All tables created!")
     except Exception as e:

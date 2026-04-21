@@ -2,8 +2,15 @@
 {% block title %}Scan Detail – Raha{% endblock %}
 
 {% block head %}
-<!-- Niivue WebGL viewer -->
-<script src="https://niivue.github.io/niivue/features/niivue.umd.js"></script>
+<!-- NiiVue WebGL viewer — pinned UMD build via jsDelivr -->
+<script src="https://unpkg.com/@niivue/niivue@0.44.0/dist/niivue.umd.js"></script>
+<script>
+  /* Normalize: some UMD builds set window.niivue.Niivue instead of window.Niivue */
+  if (typeof window.Niivue === 'undefined') {
+    if (window.niivue && window.niivue.Niivue) window.Niivue = window.niivue.Niivue;
+    else if (window.niivue && typeof window.niivue === 'function') window.Niivue = window.niivue;
+  }
+</script>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <!-- html2pdf -->
@@ -31,7 +38,8 @@
   .tab-btn:hover:not(.active) { color: var(--text-primary); background: var(--bg-surface); }
 
   /* ── Niivue canvas containers ── */
-  #gl, #gl-baseline, #gl-compare { width: 100%; height: 480px; border-radius: 10px; overflow: hidden; background: #000; }
+  #gl { width: 100%; aspect-ratio: 1 / 1; height: auto; border-radius: 10px; overflow: hidden; background: #000; display: block; }
+  #gl-baseline, #gl-compare { width: 100%; aspect-ratio: 1 / 1; height: auto; border-radius: 10px; overflow: hidden; background: #000; display: block; }
 
   /* ── Delta values ── */
   .delta-pos { color: #378d8c; font-weight: 700; }
@@ -137,35 +145,106 @@
             Multiplanar View
           </p>
           <canvas id="gl"></canvas>
+
+          <!-- AI Mask controls — shown only when an overlay is loaded -->
+          <div id="mask-controls"
+               style="display:none;gap:.75rem;align-items:center;flex-wrap:wrap;
+                      margin-top:.75rem;padding:.6rem .75rem;border-radius:8px;
+                      background:var(--bg-surface);border:1px solid var(--border-subtle)">
+            <span style="font-size:.78rem;font-weight:700;text-transform:uppercase;
+                         letter-spacing:.05em;color:var(--text-muted)">AI Mask</span>
+            <!-- Label legend -->
+            <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:600">
+              <span style="width:10px;height:10px;border-radius:2px;background:#4d99ff;display:inline-block"></span>Bone
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:600">
+              <span style="width:10px;height:10px;border-radius:2px;background:#ffe633;display:inline-block"></span>Tooth
+            </span>
+            <label style="font-size:.8rem;font-weight:600;color:var(--text-secondary);
+                          white-space:nowrap;margin:0;margin-left:.5rem">Opacity</label>
+            <input type="range" min="0" max="1" step="0.05" value="0.7"
+                   oninput="onOpacityChange(this.value)"
+                   style="flex:1;min-width:7rem;max-width:12rem;accent-color:var(--rp);cursor:pointer">
+          </div>
         </div>
 
-        <!-- Metrics panel (30%) -->
-        <div style="flex:0 0 calc(30% - 1.5rem);display:flex;flex-direction:column;gap:1rem">
-          <div class="metric-card">
-            <span class="metric-label">BV mm³ — Bone Volume</span>
-            <span id="val-bv" class="metric-value">—</span>
-          </div>
-          <div class="metric-card">
-            <span class="metric-label">TV mm³ — Total Volume</span>
-            <span id="val-tv" class="metric-value">—</span>
-          </div>
-          <div class="metric-card">
-            <span class="metric-label">BV/TV — Bone Fraction</span>
-            <span id="val-bvtv" class="metric-value">—</span>
+        <!-- Metrics panel (30%) — Clinical Morphometric Dashboard -->
+        <div style="flex:0 0 calc(30% - 1.5rem);display:flex;flex-direction:column;gap:.6rem">
+
+          <!-- Section header -->
+          <div style="padding:.5rem .75rem;border-radius:8px;
+                      background:linear-gradient(135deg,var(--rp15),transparent);
+                      border:1px solid var(--border-subtle)">
+            <p style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;
+                      color:var(--rp);margin:0">Bone Morphometry</p>
+            <p style="font-size:.7rem;color:var(--text-muted);margin:.1rem 0 0">µCT morphometric indices</p>
           </div>
 
-          <!-- Diagnosis + Severity card -->
-          <div class="metric-card" style="gap:.5rem">
-            <span class="metric-label">Clinical Diagnosis</span>
-            <span id="diagnosis-text" class="font-heading text-lg font-bold" style="color:var(--text-primary)">—</span>
-            <span class="metric-label" style="margin-top:.4rem">Severity Assessment</span>
-            <span id="severity-badge-2" class="badge badge-pending" style="align-self:flex-start">—</span>
-            <p id="severity-desc" class="text-xs" style="color:var(--text-secondary);margin-top:.25rem"></p>
+          <!-- BV -->
+          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
+            <span class="metric-label">Bone Volume (BV)</span>
+            <div style="display:flex;align-items:baseline;gap:.35rem">
+              <span id="val-bv" class="metric-value">—</span>
+              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm³</span>
+            </div>
           </div>
+
+          <!-- TV with footnote -->
+          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
+            <div style="display:flex;align-items:center;gap:.35rem">
+              <span class="metric-label">Total Volume (TV)</span>
+              <span title="Defined dynamically as Bone + Tooth volume to standardize ROIs across specimens"
+                    style="cursor:help;font-size:.75rem;color:var(--rp);font-weight:700;line-height:1">ⓘ</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:.35rem">
+              <span id="val-tv" class="metric-value">—</span>
+              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm³</span>
+            </div>
+            <p style="font-size:.65rem;color:var(--text-muted);margin-top:.15rem;font-style:italic">
+              Bone + Tooth volume (standardized ROI)
+            </p>
+          </div>
+
+          <!-- BV/TV as % -->
+          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
+            <span class="metric-label">Bone Volume Fraction (BV/TV)</span>
+            <div style="display:flex;align-items:baseline;gap:.35rem">
+              <span id="val-bvtv" class="metric-value">—</span>
+              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">%</span>
+            </div>
+          </div>
+
+          <!-- Tb.Th -->
+          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
+            <span class="metric-label">Trabecular Thickness (Tb.Th)</span>
+            <div style="display:flex;align-items:baseline;gap:.35rem">
+              <span id="val-tbth" class="metric-value" style="font-size:1.2rem">—</span>
+              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
+            </div>
+          </div>
+
+          <!-- Tb.Sp -->
+          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
+            <span class="metric-label">Trabecular Separation (Tb.Sp)</span>
+            <div style="display:flex;align-items:baseline;gap:.35rem">
+              <span id="val-tbsp" class="metric-value" style="font-size:1.2rem">—</span>
+              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
+            </div>
+          </div>
+
+          <!-- Severity card -->
+          <div class="metric-card" style="padding:.75rem 1rem;gap:.4rem">
+            <span class="metric-label">Severity Classification</span>
+            <span id="diagnosis-text" class="font-heading font-bold"
+                  style="font-size:1rem;color:var(--text-primary)">—</span>
+            <span id="severity-badge-2" class="badge badge-pending" style="align-self:flex-start">—</span>
+            <p id="severity-desc" class="text-xs" style="color:var(--text-secondary);margin-top:.1rem"></p>
+          </div>
+
 
           <!-- Report issue button -->
           <button id="btn-report" onclick="toggleModal(true)"
-                  class="btn-outline w-full justify-center" style="margin-top:.25rem">
+                  class="btn-outline w-full justify-center" style="margin-top:.1rem">
             <i data-lucide="alert-triangle" class="w-4 h-4"></i> Report Issue
           </button>
         </div>
@@ -364,6 +443,8 @@
 if (!Auth.user()) window.location.href = '/login';
 
 const SCAN_ID = {{ scan_id }};
+let BASE_SCAN_URL = null;   // set from API after loadScanData resolves
+let AI_MASK_URL   = null;
 let _scanData = null;
 let _nv = null;
 let _detailedReady = false;
@@ -376,13 +457,27 @@ let _compareTabReady = false;
 ────────────────────────────────────────────── */
 async function loadScanData() {
   try {
-    const data = await api(`/api/scans/batch/${SCAN_ID}`);
+    const data = await api(`/api/scans/scan-info/${SCAN_ID}?token=${encodeURIComponent(Auth.token())}`);
+
+    // ── Populate module-level URL vars from API response ──────────────────
+    BASE_SCAN_URL = (data.base_scan_url && data.base_scan_url !== 'null')
+      ? data.base_scan_url.trim() : null;
+    AI_MASK_URL   = (data.ai_mask_url && data.ai_mask_url !== 'null')
+      ? data.ai_mask_url.trim()   : null;
+
+    console.group('[Raha] scan-info resolved');
+    console.log('Full API data:', data);
+    console.log('BASE_SCAN_URL:', BASE_SCAN_URL);
+    console.log('AI_MASK_URL:',  AI_MASK_URL);
+    console.groupEnd();
+
     _scanData = data;
     renderMetrics(data);
-    initNiivue(data);
+    await initNiivue();
     initSeverityGauge(data.bv_tv);
     initZAxisPreview();
   } catch (err) {
+    console.error('[Raha] loadScanData failed:', err);
     document.getElementById('analysis-loading').innerHTML =
       `<p style="color:#dc2626">${esc(err.message)}</p>`;
   }
@@ -397,9 +492,11 @@ function renderMetrics(d) {
   document.getElementById('scan-date').textContent  = d.created_at ? fmtDate(d.created_at) : '';
 
   // Metrics
-  document.getElementById('val-bv').textContent   = d.bv_mm3 ?? '—';
-  document.getElementById('val-tv').textContent   = d.tv_mm3 ?? '—';
-  document.getElementById('val-bvtv').textContent = d.bv_tv  ?? '—';
+  document.getElementById('val-bv').textContent   = d.bv_mm3 != null ? Number(d.bv_mm3).toFixed(2) : '—';
+  document.getElementById('val-tv').textContent   = d.tv_mm3 != null ? Number(d.tv_mm3).toFixed(2) : '—';
+  document.getElementById('val-bvtv').textContent = d.bv_tv  != null ? (Number(d.bv_tv) * 100).toFixed(2) : '—';
+  document.getElementById('val-tbth').textContent = d.tb_th  != null ? Number(d.tb_th).toFixed(4) : '—';
+  document.getElementById('val-tbsp').textContent = d.tb_sp  != null ? Number(d.tb_sp).toFixed(4) : '—';
 
   // Diagnosis
   const diagnosis = d.diagnosis ?? 'Unknown';
@@ -441,26 +538,70 @@ function renderMetrics(d) {
 
 /* ──────────────────────────────────────────────
    Niivue – Multiplanar layout
+   Uses module-level BASE_SCAN_URL / AI_MASK_URL
+   set by loadScanData() after the API resolves.
 ────────────────────────────────────────────── */
-async function initNiivue(d) {
-  if (typeof Niivue === 'undefined') return;
+async function initNiivue() {
+  if (typeof Niivue === 'undefined') {
+    console.error('[Raha] NiiVue library not loaded — check CDN script tag');
+    return;
+  }
 
-  _nv = new Niivue({
-    show3Dcrosshair: true,
-    backColor: [0.15, 0.15, 0.15, 1],
-  });
+  const volumes = [];
+  if (BASE_SCAN_URL && BASE_SCAN_URL !== 'null' && BASE_SCAN_URL.trim() !== '')
+    volumes.push({ url: BASE_SCAN_URL.trim(), colormap: 'gray', opacity: 1.0 });
+  if (AI_MASK_URL && AI_MASK_URL !== 'null' && AI_MASK_URL.trim() !== '')
+    volumes.push({ url: AI_MASK_URL.trim(), colormap: 'label4', opacity: 0.8 });
 
+  if (volumes.length === 0) return;
+
+  await new Promise(r => setTimeout(r, 50));
+
+  _nv = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1] });
   await _nv.attachToCanvas(document.getElementById('gl'));
   _nv.setSliceType(_nv.sliceTypeMultiplanar);
 
-  const url = d.segmentationUrl || d.imageUrl;
-  if (url) {
-    try {
-      await _nv.loadVolumes([{ url }]);
-    } catch (e) {
-      console.warn('Niivue could not load volume:', e);
+  try {
+    await _nv.loadVolumes(volumes);
+
+    // Strip low-intensity air voxels from the 3D raycaster, then force GPU re-render
+    if (_nv.volumes[0]) {
+      _nv.volumes[0].cal_min = 50;
+      _nv.updateGLVolume();
     }
+
+    // Apply custom colormap via global registration pipeline
+    if (_nv.volumes.length > 1) {
+      const customMap = {
+        R: [0,  77, 255],
+        G: [0, 153, 230],
+        B: [0, 255,  51],
+        A: [0, 255, 255],
+        I: [0,   1,   2],
+      };
+      _nv.addColormap('raha_colors', customMap);
+      _nv.setColormap(_nv.volumes[1].id, 'raha_colors');
+
+      console.log('Mask Volume Properties:', _nv.volumes[1]);
+      console.log('Registered Colormaps:', _nv.colormaps());
+    }
+
+  } catch (e) {
+    console.error('[Raha] NiiVue loadVolumes failed:', e);
   }
+
+  const ctrl = document.getElementById('mask-controls');
+  if (ctrl) ctrl.style.display = volumes.length > 1 ? 'flex' : 'none';
+}
+
+function onOpacityChange(val) {
+  if (!_nv || _nv.volumes.length < 2) return;
+  _nv.setOpacity(1, parseFloat(val));
+}
+
+function onColormapChange(val) {
+  if (!_nv || _nv.volumes.length < 2) return;
+  _nv.setColormap(_nv.volumes[1].id, val);
 }
 
 /* ──────────────────────────────────────────────
@@ -714,7 +855,7 @@ async function onCompareSelect(treatId) {
   document.getElementById('btn-clear-compare').classList.remove('hidden');
 
   try {
-    const data = await api(`/api/scans/compare-batches?baseline_id=${SCAN_ID}&treatment_id=${treatId}`);
+    const data = await api(`/api/scans/compare-batches?baseline_id=${SCAN_ID}&treatment_id=${treatId}&token=${encodeURIComponent(Auth.token())}`);
     renderCompare(data, parseInt(treatId));
   } catch(e) {
     toast(e.message, 'err');
@@ -769,9 +910,11 @@ function renderCompare(data, treatId) {
 async function initCompareViewers(baseline, treatment) {
   if (typeof Niivue === 'undefined') return;
 
-  // Destroy previous instances if re-selecting
   if (_nvBaseline) { try { _nvBaseline.canvas = null; } catch(_) {} }
   if (_nvCompare)  { try { _nvCompare.canvas  = null; } catch(_) {} }
+
+  // Let the browser reflow the now-visible canvases before WebGL measures them
+  await new Promise(r => setTimeout(r, 80));
 
   _nvBaseline = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1] });
   _nvCompare  = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1] });
@@ -782,17 +925,15 @@ async function initCompareViewers(baseline, treatment) {
   _nvBaseline.setSliceType(_nvBaseline.sliceTypeMultiplanar);
   _nvCompare.setSliceType(_nvCompare.sliceTypeMultiplanar);
 
-  // Load volumes (baseline uses segmentation URL if available)
-  const baseUrl  = baseline.segmentationUrl  || baseline.imageUrl;
-  const treatUrl = treatment.segmentationUrl || treatment.imageUrl;
+  const baseUrl  = baseline.imageUrl;
+  const treatUrl = treatment.imageUrl;
 
   const loads = [];
-  if (baseUrl)  loads.push(_nvBaseline.loadVolumes([{ url: baseUrl  }]).catch(e => console.warn('Baseline Niivue:', e)));
-  if (treatUrl) loads.push(_nvCompare.loadVolumes([{ url: treatUrl }]).catch(e => console.warn('Treatment Niivue:', e)));
+  if (baseUrl)  loads.push(_nvBaseline.loadVolumes([{ url: baseUrl,  colormap: 'gray' }]).catch(e => console.warn('Baseline NiiVue:', e)));
+  if (treatUrl) loads.push(_nvCompare.loadVolumes( [{ url: treatUrl, colormap: 'gray' }]).catch(e => console.warn('Treatment NiiVue:', e)));
   await Promise.all(loads);
 
-  // Synchronise pan/zoom/scroll between the two viewers
-  _nvBaseline.syncWith(_nvCompare);
+  if (baseUrl && treatUrl) _nvBaseline.syncWith(_nvCompare);
 }
 
 /* ──────────────────────────────────────────────

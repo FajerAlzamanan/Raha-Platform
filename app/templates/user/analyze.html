@@ -3,213 +3,69 @@
 
 {% block head %}
 <style>
-/* ── Preview Belt ───────────────────────────────── */
-.belt-count {
-  display: inline-flex; align-items: center; gap: .35rem;
-  font-size: .75rem; font-weight: 600;
-  padding: .2rem .7rem; border-radius: 9999px;
-  background: var(--rp15); color: var(--rp);
-}
-.belt-wrapper {
-  display: flex; align-items: center; gap: .4rem;
-}
-.belt-scroll {
-  display: flex; gap: .6rem;
-  overflow-x: auto; flex: 1;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding: .25rem .1rem;
-  cursor: grab;
-  user-select: none;
-}
-.belt-scroll::-webkit-scrollbar { display: none; }
-.belt-scroll.grabbing { cursor: grabbing; }
-
-.thumb-card {
-  flex: 0 0 auto; width: 90px;
-  position: relative;
-  animation: thumb-pop .22s cubic-bezier(.34,1.56,.64,1) both;
-}
-@keyframes thumb-pop {
-  from { opacity: 0; transform: scale(.72); }
-  to   { opacity: 1; transform: scale(1);  }
-}
-.thumb-img {
-  width: 90px; height: 74px;
-  border-radius: 9px; overflow: hidden;
-  border: 1.5px solid var(--border-input);
-  background: var(--bg-surface);
-  display: flex; align-items: center; justify-content: center;
+/* ── Volumetric upload zones ─────────────────────────── */
+.vol-zone {
+  border: 2px dashed var(--border-input);
+  border-radius: 12px;
+  padding: 2rem 1rem;
+  text-align: center;
   cursor: pointer;
-  transition: border-color .2s, transform .15s, box-shadow .15s;
+  transition: border-color .2s, background .2s;
+  background: var(--bg-surface);
+  min-height: 170px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: .4rem;
+  position: relative;
 }
-.thumb-img:hover {
+.vol-zone:hover, .vol-zone.drag-over {
   border-color: var(--rp);
-  transform: scale(1.06);
-  box-shadow: 0 4px 14px var(--rp15);
-}
-.thumb-img img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-.thumb-name {
-  font-size: 9.5px; color: var(--text-muted); text-align: center;
-  margin-top: .25rem;
-  overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap; max-width: 90px; padding: 0 2px;
-}
-.thumb-rm {
-  position: absolute; top: -6px; right: -6px;
-  width: 18px; height: 18px; border-radius: 50%;
-  background: #ef4444; color: #fff;
-  border: none; cursor: pointer;
-  font-size: 11px; font-weight: 700; line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  z-index: 5;
-  transition: background .15s, transform .15s;
-  box-shadow: 0 1px 4px rgba(0,0,0,.25);
-}
-.thumb-rm:hover { background: #dc2626; transform: scale(1.2); }
-
-.belt-arrow-btn {
-  flex-shrink: 0;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--bg-card);
-  border: 1.5px solid var(--border-input);
-  color: var(--text-secondary); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all .2s;
-}
-.belt-arrow-btn:hover {
-  border-color: var(--rp); color: var(--rp);
   background: var(--rp10);
 }
-.belt-arrow-btn:disabled { opacity: .3; cursor: not-allowed; }
+.vol-zone.has-file {
+  border-style: solid;
+  border-color: var(--rp);
+  background: var(--rp10);
+}
 
 /* ── Step Indicator ─────────────────────────────── */
-.steps-row {
-  display: flex; align-items: flex-start; justify-content: center;
-}
-.step-item {
-  display: flex; flex-direction: column; align-items: center; gap: .4rem;
-  min-width: 80px;
-}
+.steps-row { display: flex; align-items: flex-start; justify-content: center; }
+.step-item { display: flex; flex-direction: column; align-items: center; gap: .4rem; min-width: 80px; }
 .step-circle {
   width: 36px; height: 36px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: .82rem; font-weight: 700;
-  border: 2px solid var(--border-input);
-  color: var(--text-muted);
-  background: var(--bg-card);
-  transition: all .35s ease;
-  position: relative; z-index: 1;
+  border: 2px solid var(--border-input); color: var(--text-muted); background: var(--bg-card);
+  transition: all .35s ease; position: relative; z-index: 1;
 }
-.step-label {
-  font-size: .72rem; font-weight: 600;
-  color: var(--text-muted);
-  transition: color .35s ease;
-  white-space: nowrap;
-}
-.step-connector {
-  width: 120px; height: 2px;
-  background: var(--border-input);
-  margin-top: 17px;
-  flex-shrink: 0;
-  transition: background .35s ease;
-}
-.step-item.active .step-circle {
-  border-color: var(--rp);
-  background: linear-gradient(135deg, var(--rp), var(--rs));
-  color: white;
-  box-shadow: 0 0 0 4px var(--rp15);
-}
-.step-item.active .step-label { color: var(--rp); font-weight: 700; }
-.step-item.done .step-circle {
-  border-color: var(--rp);
-  background: linear-gradient(135deg, var(--rp), var(--rs));
-  color: white;
-}
-.step-item.done .step-label { color: var(--rp); }
-.step-connector.done { background: var(--rp); }
-
-body.dark .step-circle {
-  background: var(--bg-surface);
-  border-color: rgba(255,255,255,.18);
-  color: var(--text-muted);
-}
-body.dark .step-connector { background: rgba(255,255,255,.14); }
+.step-label { font-size: .72rem; font-weight: 600; color: var(--text-muted); transition: color .35s ease; white-space: nowrap; }
+.step-connector { width: 120px; height: 2px; background: var(--border-input); margin-top: 17px; flex-shrink: 0; transition: background .35s ease; }
+.step-item.active .step-circle { border-color: var(--rp); background: linear-gradient(135deg, var(--rp), var(--rs)); color: white; box-shadow: 0 0 0 4px var(--rp15); }
+.step-item.active .step-label  { color: var(--rp); font-weight: 700; }
+.step-item.done .step-circle   { border-color: var(--rp); background: linear-gradient(135deg, var(--rp), var(--rs)); color: white; }
+.step-item.done .step-label    { color: var(--rp); }
+.step-connector.done           { background: var(--rp); }
+body.dark .step-circle         { background: var(--bg-surface); border-color: rgba(255,255,255,.18); color: var(--text-muted); }
+body.dark .step-connector      { background: rgba(255,255,255,.14); }
 body.dark .step-item.active .step-circle,
-body.dark .step-item.done  .step-circle {
-  background: linear-gradient(135deg, var(--rp), var(--rs));
-  border-color: var(--rp);
-  color: white;
-}
+body.dark .step-item.done  .step-circle { background: linear-gradient(135deg, var(--rp), var(--rs)); border-color: var(--rp); color: white; }
 body.dark .step-connector.done { background: var(--rp); }
 
-/* ── Upload zone pulse ──────────────────────────── */
-@keyframes zone-pulse {
-  0%, 100% { border-color: rgba(0,0,0,.18);       box-shadow: 0 0 0 0   var(--rp15); }
-  50%       { border-color: var(--rp);              box-shadow: 0 0 0 6px var(--rp15); }
+/* ── Slot labels ── */
+.slot-label {
+  font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
 }
-@keyframes zone-pulse-dark {
-  0%, 100% { border-color: rgba(255,255,255,.16); box-shadow: 0 0 0 0   var(--rp15); }
-  50%       { border-color: var(--rp);             box-shadow: 0 0 0 6px var(--rp15); }
-}
-.upload-zone.pulsing            { animation: zone-pulse      2.8s ease-in-out infinite; }
-body.dark .upload-zone.pulsing  { animation: zone-pulse-dark 2.8s ease-in-out infinite; }
-
-/* Larger drop zone */
-#drop-zone { padding: 4.5rem 3rem; }
-
-/* ── File counter ───────────────────────────────── */
-.file-counter {
-  display: inline-flex; align-items: center; gap: .45rem;
-  font-size: .82rem; font-weight: 600;
-  color: var(--rp);
-  padding: .45rem 1.1rem;
-  background: var(--rp10);
-  border-radius: 9999px;
-  border: 1.5px solid var(--border);
-  transition: all .2s;
-}
-
-/* ── Slots remaining badge ──────────────────────── */
-.slots-badge {
-  display: inline-flex; align-items: center; gap: .4rem;
-  font-size: .78rem; font-weight: 600;
-  color: var(--text-secondary);
-  padding: .45rem 1rem;
-  background: var(--bg-surface);
-  border-radius: 9999px;
-  border: 1.5px solid var(--border-subtle);
-  transition: all .25s;
-}
-.slots-badge.warn {
-  color: #a16207;
-  background: rgba(234,179,8,.10);
-  border-color: rgba(234,179,8,.35);
-}
-body.dark .slots-badge { border-color: rgba(255,255,255,.12); }
-body.dark .slots-badge.warn {
-  color: #fbbf24;
-  background: rgba(234,179,8,.12);
-  border-color: rgba(234,179,8,.30);
-}
-
-/* ── Upload tip ─────────────────────────────────── */
-.upload-tip {
-  display: flex; align-items: center; justify-content: center; gap: .4rem;
-  font-size: .8rem; color: var(--text-muted);
-}
+.slot-label.req  { color: var(--rp); }
+.slot-label.opt  { color: var(--text-muted); }
 </style>
 {% endblock %}
 
 {% block content %}
 <div style="min-height:calc(100vh - 92px);display:flex;align-items:center;justify-content:center;padding:2.5rem 2rem;">
-<div style="width:100%;max-width:720px;">
+<div style="width:100%;max-width:680px;">
 
-  <!-- Header -->
   <div class="text-center mb-6">
     <h1 class="font-heading text-3xl font-bold mb-1" style="color:var(--text-primary)">Start Analysis</h1>
-    <p style="color:var(--text-secondary)">Upload micro-CT images for AI-driven periodontal assessment.</p>
+    <p style="color:var(--text-secondary)">Upload a volumetric micro-CT scan (.nii.gz) for AI-driven periodontal bone assessment.</p>
   </div>
 
   <!-- Step Indicator -->
@@ -233,65 +89,68 @@ body.dark .slots-badge.warn {
   <!-- Upload Card -->
   <div class="card p-8 space-y-6">
 
-    <!-- Title (optional) -->
+    <!-- Optional title -->
     <div class="space-y-1">
       <label class="text-sm font-medium" style="color:var(--text-primary)">
-        Batch / Volume Title
+        Analysis Title
         <span style="color:var(--text-muted);font-weight:400;font-size:.75rem;margin-left:.35rem">(optional)</span>
       </label>
       <input id="vol-title" class="input" placeholder="e.g. Patient Case #42"/>
     </div>
 
-    <!-- Drop zone -->
-    <div id="drop-zone" class="upload-zone pulsing"
-      ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"
-      onclick="document.getElementById('file-input').click()">
-      <i data-lucide="upload-cloud" class="w-14 h-14 mx-auto mb-3" style="color:var(--rp);opacity:.75"></i>
-      <p class="font-semibold text-lg" style="color:var(--text-primary)">Drop files here or click to browse</p>
-      <p class="text-sm mt-1" style="color:var(--text-muted)">TIFF, BMP, PNG, JPG, IIF — up to 50 MB per file</p>
-      <p class="text-xs mt-1" style="color:var(--text-muted);opacity:.75">Minimum 10 slices &nbsp;·&nbsp; Maximum 500 slices per volume</p>
-      <input id="file-input" type="file" accept="image/*,.tif,.tiff" multiple class="hidden"
-             onchange="onFilesSelected(this.files)"/>
-    </div>
+    <!-- Dual drop zones -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
 
-    <!-- File counter + slots remaining (shown after files selected) -->
-    <div id="file-counter-wrap" class="hidden">
-      <div style="display:flex;justify-content:center;align-items:center;gap:.6rem;flex-wrap:wrap">
-        <div class="file-counter">
-          <i data-lucide="files" style="width:14px;height:14px"></i>
-          <span id="file-counter-text">0 files selected</span>
+      <!-- ── Base Scan ── -->
+      <div class="space-y-2">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="slot-label req">Base Scan <span style="color:#ef4444">*</span></span>
+          <span style="font-size:.7rem;color:var(--text-muted)">.nii / .nii.gz</span>
         </div>
-        <div class="slots-badge" id="slots-badge">
-          <i data-lucide="layers" style="width:13px;height:13px"></i>
-          <span id="slots-text">500 slots remaining</span>
+        <div id="base-zone" class="vol-zone"
+             ondragover="zoneDragOver(event,'base')"
+             ondragleave="zoneDragLeave('base')"
+             ondrop="zoneDrop(event,'base')"
+             onclick="document.getElementById('base-input').click()">
+          <div id="base-empty">
+            <i data-lucide="upload-cloud" style="width:30px;height:30px;color:var(--rp);opacity:.75"></i>
+            <p class="font-semibold text-sm" style="color:var(--text-primary);margin-top:.25rem">Drop or click to browse</p>
+            <p class="text-xs" style="color:var(--text-muted)">e.g. scan.nii.gz</p>
+          </div>
+          <div id="base-file-display" class="hidden" style="width:100%;padding:.25rem 0"></div>
         </div>
+        <input id="base-input" type="file" accept=".nii,.nii.gz,.gz" class="hidden"
+               onchange="onZoneSelect(this.files,'base')"/>
+      </div>
+
+      <!-- ── AI Mask ── -->
+      <div class="space-y-2">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="slot-label opt">AI Mask</span>
+          <span style="font-size:.7rem;color:var(--text-muted)">optional</span>
+        </div>
+        <div id="mask-zone" class="vol-zone"
+             ondragover="zoneDragOver(event,'mask')"
+             ondragleave="zoneDragLeave('mask')"
+             ondrop="zoneDrop(event,'mask')"
+             onclick="document.getElementById('mask-input').click()">
+          <div id="mask-empty">
+            <i data-lucide="layers" style="width:30px;height:30px;color:var(--text-muted);opacity:.6"></i>
+            <p class="font-semibold text-sm" style="color:var(--text-primary);margin-top:.25rem">Drop or click to browse</p>
+            <p class="text-xs" style="color:var(--text-muted)">e.g. scan_seg.nii.gz</p>
+          </div>
+          <div id="mask-file-display" class="hidden" style="width:100%;padding:.25rem 0"></div>
+        </div>
+        <input id="mask-input" type="file" accept=".nii,.nii.gz,.gz" class="hidden"
+               onchange="onZoneSelect(this.files,'mask')"/>
       </div>
     </div>
 
-    <!-- Tip -->
-    <div class="upload-tip">
-      <i data-lucide="lightbulb" style="width:13px;height:13px;color:var(--rp);opacity:.8;flex-shrink:0"></i>
-      <span>Tip: Upload slices in order for best results</span>
-    </div>
-
-    <!-- Preview Belt (hidden until files selected) -->
-    <div id="belt-outer" class="hidden space-y-2">
-      <div class="flex items-center justify-between">
-        <span class="belt-count" id="belt-count">
-          <i data-lucide="images" style="width:12px;height:12px"></i>
-          <span id="belt-count-text">0 images</span>
-        </span>
-      </div>
-      <div class="belt-wrapper">
-        <button class="belt-arrow-btn" id="belt-left" onclick="scrollBelt(-1)" type="button">
-          <i data-lucide="chevron-left" style="width:13px;height:13px"></i>
-        </button>
-        <div class="belt-scroll" id="belt-scroll"></div>
-        <button class="belt-arrow-btn" id="belt-right" onclick="scrollBelt(1)" type="button">
-          <i data-lucide="chevron-right" style="width:13px;height:13px"></i>
-        </button>
-      </div>
-    </div>
+    <!-- Info tip -->
+    <p class="text-xs" style="color:var(--text-muted);display:flex;align-items:center;gap:.4rem">
+      <i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;color:var(--rp);opacity:.8"></i>
+      The AI mask is the segmentation output from your model (_seg.nii.gz). It will be overlaid on the base scan in the 3D viewer.
+    </p>
 
     <!-- Alert -->
     <div id="alert-box" class="hidden"></div>
@@ -305,7 +164,6 @@ body.dark .slots-badge.warn {
         <i data-lucide="x" class="w-4 h-4"></i> Clear
       </button>
     </div>
-
   </div>
 
   <!-- Progress card -->
@@ -321,7 +179,6 @@ body.dark .slots-badge.warn {
     </div>
   </div>
 
-
 </div>
 </div>
 {% endblock %}
@@ -330,12 +187,10 @@ body.dark .slots-badge.warn {
 <script>
 if (!Auth.user()) window.location.href = '/login';
 
-const MIN_FILES = 10;
-const MAX_FILES = 500;
+let baseScanFile = null;
+let maskFile     = null;
 
-let files = [];
-
-/* ── Step Indicator ──────────────────────────────── */
+/* ── Step indicator ── */
 function setStep(n) {
   ['step-upload','step-analyze','step-results'].forEach((id, i) => {
     const el = document.getElementById(id);
@@ -350,204 +205,91 @@ function setStep(n) {
   });
   for (let i = 1; i <= 3; i++) {
     const circle = document.getElementById(`step-circle-${i}`);
-    if (i < n) {
-      circle.innerHTML = `<i data-lucide="check" style="width:14px;height:14px"></i>`;
-    } else {
-      circle.textContent = String(i);
-    }
+    circle.innerHTML = i < n
+      ? `<i data-lucide="check" style="width:14px;height:14px"></i>`
+      : String(i);
   }
   lucide.createIcons();
 }
 
-/* ── Pulse management ────────────────────────────── */
-function updatePulse() {
-  const zone = document.getElementById('drop-zone');
-  if (!files.length) zone.classList.add('pulsing');
-  else zone.classList.remove('pulsing');
+function fmtSize(bytes) {
+  return bytes >= 1024 * 1024
+    ? (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+    : (bytes / 1024).toFixed(1) + ' KB';
 }
 
-/* ── File counter + validation ───────────────────── */
-function updateFileCounter() {
-  const wrap       = document.getElementById('file-counter-wrap');
-  const text       = document.getElementById('file-counter-text');
-  const slotsBadge = document.getElementById('slots-badge');
-  const slotsText  = document.getElementById('slots-text');
+/* ── Drag / drop ── */
+function zoneDragOver(e, slot)  { e.preventDefault(); document.getElementById(slot+'-zone').classList.add('drag-over'); }
+function zoneDragLeave(slot)    { document.getElementById(slot+'-zone').classList.remove('drag-over'); }
+function zoneDrop(e, slot)      { e.preventDefault(); zoneDragLeave(slot); onZoneSelect(e.dataTransfer.files, slot); }
 
-  if (!files.length) {
-    wrap.classList.add('hidden');
-    clearAlert();
+/* ── File selection ── */
+function onZoneSelect(fileList, slot) {
+  const f = fileList[0];
+  if (!f) return;
+  const n = f.name.toLowerCase();
+  if (!n.endsWith('.nii.gz') && !n.endsWith('.nii') && !n.endsWith('.gz')) {
+    showAlert(`Please upload a .nii or .nii.gz file.`, 'error');
     return;
   }
+  clearAlert();
+  if (slot === 'base') baseScanFile = f;
+  else                 maskFile     = f;
+  renderSlot(slot, f);
+}
 
-  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
-  const sizeStr = totalBytes >= 1024 * 1024
-    ? (totalBytes / (1024 * 1024)).toFixed(1) + ' MB'
-    : (totalBytes / 1024).toFixed(1) + ' KB';
-  text.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} selected \u2022 ${sizeStr}`;
+function renderSlot(slot, f) {
+  const zone    = document.getElementById(slot + '-zone');
+  const empty   = document.getElementById(slot + '-empty');
+  const display = document.getElementById(slot + '-file-display');
+  const icon    = slot === 'base' ? 'file-scan' : 'layers';
 
-  const remaining = MAX_FILES - files.length;
-  if (remaining > 0) {
-    slotsText.textContent = `${remaining} slot${remaining !== 1 ? 's' : ''} remaining`;
-    slotsBadge.classList.remove('hidden');
-    slotsBadge.classList.toggle('warn', remaining <= 50);
-  } else {
-    slotsBadge.classList.add('hidden');
-  }
-
-  wrap.classList.remove('hidden');
-
-  // Live validation feedback
-  if (files.length > MAX_FILES) {
-    showAlert('Maximum 500 slices per volume. Please reduce your selection', 'error');
-  } else if (files.length < MIN_FILES) {
-    showAlert('Please upload at least 10 slices for accurate analysis', 'error');
-  } else {
-    clearAlert();
-  }
-
+  zone.classList.add('has-file');
+  empty.classList.add('hidden');
+  display.classList.remove('hidden');
+  display.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:.45rem">
+      <i data-lucide="${icon}" style="width:26px;height:26px;color:var(--rp)"></i>
+      <p class="text-sm font-semibold" style="color:var(--text-primary);max-width:150px;
+         overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+         title="${esc(f.name)}">${esc(f.name)}</p>
+      <p class="text-xs" style="color:var(--text-muted)">${fmtSize(f.size)}</p>
+      <button onclick="clearSlot('${slot}')" type="button"
+              style="font-size:.72rem;color:var(--text-muted);background:none;border:none;
+                     cursor:pointer;text-decoration:underline;padding:0">
+        Remove
+      </button>
+    </div>`;
   lucide.createIcons();
 }
 
-/* ── Drag & Drop ─────────────────────────────── */
-function onDragOver(e) {
-  e.preventDefault();
-  const zone = document.getElementById('drop-zone');
-  zone.classList.add('drag-over');
-  zone.classList.remove('pulsing');
-}
-function onDragLeave() {
-  document.getElementById('drop-zone').classList.remove('drag-over');
-  updatePulse();
-}
-function onDrop(e) {
-  e.preventDefault();
-  onDragLeave();
-  onFilesSelected(e.dataTransfer.files);
-}
-function onFilesSelected(list) {
-  const incoming = Array.from(list);
-  const existingNames = new Set(files.map(f => f.name + f.size));
-  incoming.forEach(f => {
-    if (!existingNames.has(f.name + f.size)) files.push(f);
-  });
-  renderBelt();
-  updateFileCounter();
-  updatePulse();
+function clearSlot(slot) {
+  if (slot === 'base') baseScanFile = null;
+  else                 maskFile     = null;
+
+  const zone    = document.getElementById(slot + '-zone');
+  const empty   = document.getElementById(slot + '-empty');
+  const display = document.getElementById(slot + '-file-display');
+  zone.classList.remove('has-file');
+  empty.classList.remove('hidden');
+  display.classList.add('hidden');
+  display.innerHTML = '';
+  document.getElementById(slot + '-input').value = '';
 }
 
-/* ── Preview Belt ────────────────────────────── */
-function renderBelt() {
-  const outer  = document.getElementById('belt-outer');
-  const scroll = document.getElementById('belt-scroll');
-
-  if (!files.length) { outer.classList.add('hidden'); return; }
-
-  document.getElementById('belt-count-text').textContent =
-    `${files.length} image${files.length !== 1 ? 's' : ''}`;
-  outer.classList.remove('hidden');
-  scroll.innerHTML = '';
-
-  files.forEach((f, i) => {
-    const card = document.createElement('div');
-    card.className = 'thumb-card';
-    card.style.animationDelay = `${i * 30}ms`;
-
-    const ext   = f.name.split('.').pop().toLowerCase();
-    const isImg = ['png','jpg','jpeg','bmp'].includes(ext);
-
-    card.innerHTML = `
-      <button class="thumb-rm" onclick="removeFile(${i})" type="button" title="Remove">×</button>
-      <div class="thumb-img" onclick="previewFile(${i})" title="${esc(f.name)}">
-        ${isImg
-          ? `<img src="${URL.createObjectURL(f)}" draggable="false"/>`
-          : `<i data-lucide="file-scan" style="width:26px;height:26px;color:var(--rp)"></i>`}
-      </div>
-      <p class="thumb-name">${esc(f.name)}</p>`;
-
-    scroll.appendChild(card);
-  });
-
-  lucide.createIcons();
-  initBeltDrag();
+function clearAll() {
+  clearSlot('base');
+  clearSlot('mask');
+  clearAlert();
+  document.getElementById('vol-title').value = '';
+  document.getElementById('progress-card').classList.add('hidden');
+  setStep(1);
 }
 
-function removeFile(index) {
-  files.splice(index, 1);
-  renderBelt();
-  updateFileCounter();
-  updatePulse();
-}
-
-function previewFile(index) {
-  const f   = files[index];
-  const ext = f.name.split('.').pop().toLowerCase();
-
-  if (['png','jpg','jpeg','bmp'].includes(ext)) {
-    showModal(`
-      <div style="max-width:100%">
-        <div class="flex items-center justify-between mb-3">
-          <p class="font-semibold text-sm font-mono" style="color:var(--text-primary);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</p>
-          <button onclick="closeModal()" class="btn-ghost" style="padding:.25rem .5rem;flex-shrink:0">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-        <img src="${URL.createObjectURL(f)}"
-             style="width:100%;border-radius:10px;max-height:62vh;object-fit:contain;background:var(--bg-surface)"/>
-        <p class="text-xs text-center mt-2" style="color:var(--text-muted)">${(f.size/1024).toFixed(1)} KB</p>
-      </div>`);
-  } else {
-    showModal(`
-      <div class="text-center space-y-4 py-4">
-        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style="background:var(--rp15)">
-          <i data-lucide="file-scan" class="w-8 h-8" style="color:var(--rp)"></i>
-        </div>
-        <p class="font-semibold font-mono text-sm" style="color:var(--text-primary)">${esc(f.name)}</p>
-        <p class="text-sm" style="color:var(--text-secondary)">${(f.size/1024).toFixed(1)} KB</p>
-        <button onclick="closeModal()" class="btn-outline">Close</button>
-      </div>`);
-  }
-  lucide.createIcons();
-}
-
-function scrollBelt(dir) {
-  document.getElementById('belt-scroll').scrollBy({ left: dir * 220, behavior: 'smooth' });
-}
-
-function initBeltDrag() {
-  const el = document.getElementById('belt-scroll');
-  if (el._dragReady) return;
-  el._dragReady = true;
-
-  let down = false, startX, scrollLeft;
-
-  el.addEventListener('mousedown', e => {
-    down = true; el.classList.add('grabbing');
-    startX = e.pageX - el.offsetLeft; scrollLeft = el.scrollLeft;
-  });
-  el.addEventListener('mousemove', e => {
-    if (!down) return;
-    el.scrollLeft = scrollLeft - (e.pageX - el.offsetLeft - startX);
-  });
-  ['mouseup','mouseleave'].forEach(ev =>
-    el.addEventListener(ev, () => { down = false; el.classList.remove('grabbing'); }));
-
-  let tsX, tsScroll;
-  el.addEventListener('touchstart', e => {
-    tsX = e.touches[0].pageX - el.offsetLeft; tsScroll = el.scrollLeft;
-  }, { passive: true });
-  el.addEventListener('touchmove', e => {
-    el.scrollLeft = tsScroll - (e.touches[0].pageX - el.offsetLeft - tsX);
-  }, { passive: true });
-}
-
-/* ── Analysis ────────────────────────────────── */
+/* ── Submit ── */
 async function startAnalysis() {
-  if (!files.length || files.length < MIN_FILES) {
-    showAlert('Please upload at least 10 slices for accurate analysis', 'error');
-    return;
-  }
-  if (files.length > MAX_FILES) {
-    showAlert('Maximum 500 slices per volume. Please reduce your selection', 'error');
+  if (!baseScanFile) {
+    showAlert('A base scan (.nii.gz) is required.', 'error');
     return;
   }
 
@@ -558,48 +300,40 @@ async function startAnalysis() {
   document.getElementById('progress-card').classList.remove('hidden');
   document.getElementById('spinner-area').innerHTML = '<div class="spinner"></div>';
   clearAlert();
-  setP(0, 'Preparing batch…');
+  setP(0, 'Preparing volume…');
   btn.disabled = true;
 
   const form = new FormData();
-  files.forEach(f => form.append('scans', f));
-  form.append('title', title);
+  form.append('scans', baseScanFile);
+  if (maskFile) form.append('scans', maskFile);
+  if (title)    form.append('title', title);
 
-  setP(25, `Uploading ${files.length} image${files.length !== 1 ? 's' : ''}…`);
-
-  const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+  setP(25, `Uploading ${maskFile ? '2 files' : '1 file'}…`);
 
   try {
-    const res  = await fetch('/api/scans/upload-batch', {
+    const res  = await fetch('/api/scans/upload-volume', {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${Auth.token()}` },
       body:    form,
-      signal:  controller.signal,
     });
-    clearTimeout(timeoutId);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Upload failed');
 
-    setP(80, 'Running segmentation…');
-    await sleep(600);
+    setP(80, 'Running morphometric analysis…');
+    await new Promise(r => setTimeout(r, 700));
     setP(100, 'Analysis complete!');
     setStep(3);
     document.getElementById('spinner-area').innerHTML =
       `<i data-lucide="check-circle" class="w-10 h-10" style="color:#22c55e"></i>`;
     lucide.createIcons();
-    showAlert('Analysis complete! Opening your results…', 'success');
-    await sleep(1200);
+    showAlert('Analysis complete! Opening results…', 'success');
+    await new Promise(r => setTimeout(r, 1000));
     window.location.href = `/scan/${data.batchId}`;
 
-  } catch(err) {
-    clearTimeout(timeoutId);
-    const msg = err.name === 'AbortError'
-      ? 'Analysis is taking longer than expected. Please check Results page or try again.'
-      : err.message;
-    showAlert(msg, 'error');
+  } catch (err) {
+    showAlert(err.message, 'error');
     setP(0, '');
-    document.getElementById('spinner-area').innerHTML = '<div class="spinner" style="display:none"></div>';
+    document.getElementById('spinner-area').innerHTML = '';
     document.getElementById('progress-card').classList.add('hidden');
     setStep(1);
   } finally {
@@ -607,25 +341,12 @@ async function startAnalysis() {
   }
 }
 
-/* ── Helpers ─────────────────────────────────── */
-function clearAll() {
-  files = [];
-  renderBelt();
-  updateFileCounter();
-  updatePulse();
-  setStep(1);
-  document.getElementById('progress-card').classList.add('hidden');
-  document.getElementById('vol-title').value = '';
-  document.getElementById('alert-box').classList.add('hidden');
-  document.getElementById('spinner-area').innerHTML = '<div class="spinner"></div>';
-}
-
+/* ── Helpers ── */
 function setP(pct, text) {
   document.getElementById('p-bar').style.width  = pct + '%';
   document.getElementById('p-pct').textContent  = pct + '%';
   document.getElementById('p-text').textContent = text;
 }
-
 function showAlert(msg, type) {
   const el = document.getElementById('alert-box');
   el.textContent = msg;
@@ -633,11 +354,8 @@ function showAlert(msg, type) {
   el.classList.remove('hidden');
 }
 function clearAlert() {
-  const el = document.getElementById('alert-box');
-  el.className = 'hidden';
+  document.getElementById('alert-box').className = 'hidden';
 }
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 lucide.createIcons();
 </script>

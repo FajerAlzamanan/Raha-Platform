@@ -70,6 +70,17 @@ def save_scan(user_id, filename, original_name):
         print(f"save_scan error: {e}")
         return None
 
+def update_scan_masks(scan_id, base_path, mask_path):
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE scans SET base_scan_path=%s, ai_mask_path=%s WHERE id=%s',
+                    (base_path, mask_path, scan_id)
+                )
+    except Exception as e:
+        print(f"update_scan_masks error: {e}")
+
 def save_reset_token(user_id, token, expires_at):
     try:
         with _conn() as conn:
@@ -333,13 +344,13 @@ def get_system_logs(limit=100):
 
 # ─── Analysis Helpers ───────────────────────────
 
-def save_results(scan_id, BV, TV, BV_TV, severity, diagnosis=None):
+def save_results(scan_id, BV, TV, BV_TV, severity, diagnosis=None, tb_th=None, tb_sp=None):
     try:
         with _conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    'INSERT INTO results (scan_id,BV_mm3,TV_mm3,BV_TV,severity,diagnosis) VALUES (%s,%s,%s,%s,%s,%s)',
-                    (scan_id, BV, TV, BV_TV, severity, diagnosis)
+                    'INSERT INTO results (scan_id,BV_mm3,TV_mm3,BV_TV,severity,diagnosis,tb_th,tb_sp) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',
+                    (scan_id, BV, TV, BV_TV, severity, diagnosis, tb_th, tb_sp)
                 )
     except Exception as e:
         print(f"save_results error: {e}")
