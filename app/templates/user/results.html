@@ -103,6 +103,12 @@ async function load() {
           <p class="font-medium truncate" style="color:var(--text-primary)">${esc(s.title)}</p>
           <div class="flex items-center gap-1.5 flex-shrink-0">
             <span class="badge ${bc}">${sv}</span>
+            <button onclick="openRenameModal(${s.id})" title="Edit analysis name"
+                    style="display:inline-flex;align-items:center;color:var(--rp);background:var(--rp10);border:none;padding:.3rem .35rem;border-radius:6px;cursor:pointer;transition:background .2s;line-height:1;"
+                    onmouseover="this.style.background='var(--rp20)'"
+                    onmouseout="this.style.background='var(--rp10)'">
+              <i data-lucide="pencil" style="width:14px;height:14px;pointer-events:none"></i>
+            </button>
             <button onclick="openDeleteModal(${s.id})" title="Delete analysis"
                     style="display:inline-flex;align-items:center;color:#dc2626;background:rgba(239,68,68,.08);border:none;padding:.3rem .35rem;border-radius:6px;cursor:pointer;transition:background .2s;line-height:1;"
                     onmouseover="this.style.background='rgba(239,68,68,.2)'"
@@ -131,7 +137,58 @@ async function load() {
     lucide.createIcons();
   } catch(err) { document.getElementById('loading').innerHTML = `<p style="color:#dc2626">${err.message}</p>`; }
 }
+let _renameBatchId = null;
 let _deleteBatchId = null;
+
+function openRenameModal(batchId) {
+  _renameBatchId = batchId;
+  const card = document.querySelector(`[data-batch-id="${batchId}"]`);
+  const title = card ? card.dataset.batchTitle : '';
+  showModal(`
+    <div class="space-y-4">
+      <div class="flex items-center gap-3">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--rp10);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i data-lucide="pencil" style="width:18px;height:18px;color:var(--rp)"></i>
+        </div>
+        <h3 class="font-heading text-lg font-bold" style="color:var(--text-primary)">Edit Analysis Name</h3>
+      </div>
+      <div>
+        <label class="modal-form-label" for="rename-title">Analysis Title</label>
+        <input id="rename-title" class="modal-input" value="${esc(title)}" placeholder="Enter analysis title" />
+      </div>
+      <div class="flex gap-2 justify-end pt-2">
+        <button onclick="closeModal()" class="btn-outline" style="padding:.45rem 1.1rem;font-size:.85rem">Cancel</button>
+        <button onclick="confirmRename()" class="btn-primary" style="padding:.45rem 1.1rem;font-size:.85rem">
+          <i data-lucide="check" style="width:14px;height:14px"></i> Save
+        </button>
+      </div>
+    </div>`);
+}
+
+async function confirmRename() {
+  const input = document.getElementById('rename-title');
+  const title = input ? input.value.trim() : '';
+  if (!title) {
+    toast('Please enter an analysis title.', 'err');
+    return;
+  }
+  try {
+    const data = await api(`/api/scans/batch/${_renameBatchId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    });
+    const card = document.querySelector(`[data-batch-id="${_renameBatchId}"]`);
+    if (card) {
+      card.dataset.batchTitle = data.title;
+      const titleEl = card.querySelector('.font-medium.truncate');
+      if (titleEl) titleEl.textContent = data.title;
+    }
+    closeModal();
+    toast('Analysis name updated.');
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
 
 function openDeleteModal(batchId) {
   _deleteBatchId = batchId;

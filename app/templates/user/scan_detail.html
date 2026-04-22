@@ -38,8 +38,52 @@
   .tab-btn:hover:not(.active) { color: var(--text-primary); background: var(--bg-surface); }
 
   /* ── Niivue canvas containers ── */
+  .viewer-stage { position: relative; }
   #gl { width: 100%; aspect-ratio: 1 / 1; height: auto; border-radius: 10px; overflow: hidden; background: #000; display: block; }
   #gl-baseline, #gl-compare { width: 100%; aspect-ratio: 1 / 1; height: auto; border-radius: 10px; overflow: hidden; background: #000; display: block; }
+  .multiplanar-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .2s ease, visibility .2s ease;
+  }
+  .multiplanar-loader.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .multiplanar-loader__video {
+    width: 250px;
+    height: 250px;
+    object-fit: contain;
+    display: block;
+  }
+  .compare-viewer-stage { position: relative; }
+  .compare-viewer-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .2s ease, visibility .2s ease;
+  }
+  .compare-viewer-loader.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .compare-viewer-loader__video {
+    width: 110px;
+    height: 110px;
+    object-fit: contain;
+    display: block;
+  }
 
   /* ── Delta values ── */
   .delta-pos { color: #378d8c; font-weight: 700; }
@@ -54,6 +98,23 @@
   }
   .metric-value { font-family: 'Outfit', sans-serif; font-size: 1.45rem; font-weight: 700; color: var(--rp); }
   .metric-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .6rem;
+  }
+  .metric-card--hero {
+    gap: .45rem;
+    padding: .9rem 1rem;
+    background: linear-gradient(135deg, var(--rp10), var(--bg-card));
+  }
+  .metric-card--span-2 { grid-column: 1 / -1; }
+  .metric-card--compact { padding: .8rem .95rem; gap: .2rem; }
+  .metric-card__meta {
+    font-size: .68rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+  }
 
   /* ── Action bar ── */
   .action-bar {
@@ -144,7 +205,14 @@
             <i data-lucide="layers" style="width:12px;height:12px;display:inline;vertical-align:middle"></i>
             Multiplanar View
           </p>
-          <canvas id="gl"></canvas>
+          <div class="viewer-stage">
+            <canvas id="gl"></canvas>
+            <div id="multiplanar-loader" class="multiplanar-loader" aria-hidden="true">
+              <video class="multiplanar-loader__video" autoplay muted loop playsinline preload="auto">
+                <source src="/static/multiplanar-loader.mp4" type="video/mp4">
+              </video>
+            </div>
+          </div>
 
           <!-- AI Mask controls — shown only when an overlay is loaded -->
           <div id="mask-controls"
@@ -155,10 +223,10 @@
                          letter-spacing:.05em;color:var(--text-muted)">AI Mask</span>
             <!-- Label legend -->
             <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:600">
-              <span style="width:10px;height:10px;border-radius:2px;background:#4d99ff;display:inline-block"></span>Bone
+              <span style="width:10px;height:10px;border-radius:2px;background:#549cff;display:inline-block"></span>Bone
             </span>
             <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:600">
-              <span style="width:10px;height:10px;border-radius:2px;background:#ffe633;display:inline-block"></span>Tooth
+              <span style="width:10px;height:10px;border-radius:2px;background:#ffe635;display:inline-block"></span>Tooth
             </span>
             <label style="font-size:.8rem;font-weight:600;color:var(--text-secondary);
                           white-space:nowrap;margin:0;margin-left:.5rem">Opacity</label>
@@ -180,65 +248,69 @@
             <p style="font-size:.7rem;color:var(--text-muted);margin:.1rem 0 0">µCT morphometric indices</p>
           </div>
 
-          <!-- BV -->
-          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
-            <span class="metric-label">Bone Volume (BV)</span>
-            <div style="display:flex;align-items:baseline;gap:.35rem">
-              <span id="val-bv" class="metric-value">—</span>
-              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm³</span>
+          <div class="metrics-grid">
+            <!-- Severity card -->
+            <div class="metric-card metric-card--hero metric-card--span-2">
+              <span class="metric-label">Severity Classification</span>
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem">
+                <div style="display:flex;flex-direction:column;gap:.25rem">
+                  <span id="diagnosis-text" class="font-heading font-bold"
+                        style="font-size:1rem;color:var(--text-primary)">—</span>
+                  <p id="severity-desc" class="text-xs" style="color:var(--text-secondary);margin:0"></p>
+                </div>
+                <span id="severity-badge-2" class="badge badge-pending" style="align-self:flex-start">—</span>
+              </div>
             </div>
-          </div>
 
-          <!-- TV with footnote -->
-          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
-            <div style="display:flex;align-items:center;gap:.35rem">
-              <span class="metric-label">Total Volume (TV)</span>
-              <span title="Defined dynamically as Bone + Tooth volume to standardize ROIs across specimens"
-                    style="cursor:help;font-size:.75rem;color:var(--rp);font-weight:700;line-height:1">ⓘ</span>
+            <!-- BV -->
+            <div class="metric-card metric-card--compact">
+              <span class="metric-label">Bone Volume</span>
+              <div style="display:flex;align-items:baseline;gap:.35rem">
+                <span id="val-bv" class="metric-value">—</span>
+                <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm³</span>
+              </div>
             </div>
-            <div style="display:flex;align-items:baseline;gap:.35rem">
-              <span id="val-tv" class="metric-value">—</span>
-              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm³</span>
-            </div>
-            <p style="font-size:.65rem;color:var(--text-muted);margin-top:.15rem;font-style:italic">
-              Bone + Tooth volume (standardized ROI)
-            </p>
-          </div>
 
-          <!-- BV/TV as % -->
-          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
-            <span class="metric-label">Bone Volume Fraction (BV/TV)</span>
-            <div style="display:flex;align-items:baseline;gap:.35rem">
-              <span id="val-bvtv" class="metric-value">—</span>
-              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">%</span>
+            <!-- BV/TV -->
+            <div class="metric-card metric-card--compact">
+              <span class="metric-label">BV/TV Ratio</span>
+              <div style="display:flex;align-items:baseline;gap:.35rem">
+                <span id="val-bvtv" class="metric-value">—</span>
+                <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">%</span>
+              </div>
             </div>
-          </div>
 
-          <!-- Tb.Th -->
-          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
-            <span class="metric-label">Trabecular Thickness (Tb.Th)</span>
-            <div style="display:flex;align-items:baseline;gap:.35rem">
-              <span id="val-tbth" class="metric-value" style="font-size:1.2rem">—</span>
-              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
+            <!-- TV with footnote -->
+            <div class="metric-card metric-card--compact metric-card--span-2">
+              <div style="display:flex;align-items:center;gap:.35rem">
+                <span class="metric-label">Total Volume</span>
+                <span title="Defined dynamically as Bone + Tooth volume to standardize ROIs across specimens"
+                      style="cursor:help;font-size:.75rem;color:var(--rp);font-weight:700;line-height:1">ⓘ</span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:.35rem">
+                <span id="val-tv" class="metric-value">—</span>
+                <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm³</span>
+              </div>
+              <p class="metric-card__meta">Bone + Tooth volume (standardized ROI)</p>
             </div>
-          </div>
 
-          <!-- Tb.Sp -->
-          <div class="metric-card" style="padding:.75rem 1rem;gap:.1rem">
-            <span class="metric-label">Trabecular Separation (Tb.Sp)</span>
-            <div style="display:flex;align-items:baseline;gap:.35rem">
-              <span id="val-tbsp" class="metric-value" style="font-size:1.2rem">—</span>
-              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
+            <!-- Tb.Th -->
+            <div class="metric-card metric-card--compact">
+              <span class="metric-label">Trabecular Thickness</span>
+              <div style="display:flex;align-items:baseline;gap:.35rem">
+                <span id="val-tbth" class="metric-value" style="font-size:1.2rem">—</span>
+                <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
+              </div>
             </div>
-          </div>
 
-          <!-- Severity card -->
-          <div class="metric-card" style="padding:.75rem 1rem;gap:.4rem">
-            <span class="metric-label">Severity Classification</span>
-            <span id="diagnosis-text" class="font-heading font-bold"
-                  style="font-size:1rem;color:var(--text-primary)">—</span>
-            <span id="severity-badge-2" class="badge badge-pending" style="align-self:flex-start">—</span>
-            <p id="severity-desc" class="text-xs" style="color:var(--text-secondary);margin-top:.1rem"></p>
+            <!-- Tb.Sp -->
+            <div class="metric-card metric-card--compact">
+              <span class="metric-label">Trabecular Separation</span>
+              <div style="display:flex;align-items:baseline;gap:.35rem">
+                <span id="val-tbsp" class="metric-value" style="font-size:1.2rem">—</span>
+                <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
+              </div>
+            </div>
           </div>
 
 
@@ -331,7 +403,14 @@
             Baseline (This Scan)
           </p>
           <div class="card p-3">
-            <canvas id="gl-baseline"></canvas>
+            <div class="compare-viewer-stage">
+              <canvas id="gl-baseline"></canvas>
+              <div id="compare-loader-baseline" class="compare-viewer-loader" aria-hidden="true">
+                <video class="compare-viewer-loader__video" autoplay muted loop playsinline preload="auto">
+                  <source src="/static/multiplanar-loader.mp4" type="video/mp4">
+                </video>
+              </div>
+            </div>
           </div>
           <div class="card p-4 space-y-3">
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;text-align:center">
@@ -357,7 +436,14 @@
             Post-Treatment — <span id="cmp-treat-label" style="color:var(--rp)">—</span>
           </p>
           <div class="card p-3">
-            <canvas id="gl-compare"></canvas>
+            <div class="compare-viewer-stage">
+              <canvas id="gl-compare"></canvas>
+              <div id="compare-loader-treatment" class="compare-viewer-loader" aria-hidden="true">
+                <video class="compare-viewer-loader__video" autoplay muted loop playsinline preload="auto">
+                  <source src="/static/multiplanar-loader.mp4" type="video/mp4">
+                </video>
+              </div>
+            </div>
           </div>
           <div class="card p-4 space-y-3">
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;text-align:center">
@@ -452,6 +538,35 @@ let _nvBaseline = null;
 let _nvCompare  = null;
 let _compareTabReady = false;
 
+function showMultiplanarLoader() {
+  document.getElementById('multiplanar-loader')?.classList.remove('is-hidden');
+}
+
+function hideMultiplanarLoader() {
+  document.getElementById('multiplanar-loader')?.classList.add('is-hidden');
+}
+
+function setCompareLoader(side, visible) {
+  const el = document.getElementById(`compare-loader-${side}`);
+  if (!el) return;
+  el.classList.toggle('is-hidden', !visible);
+}
+
+function applySegmentationColormap(nv, volumeIndex = 1) {
+  if (!nv || !nv.volumes || nv.volumes.length <= volumeIndex || !nv.volumes[volumeIndex]) return;
+  const customMap = {
+    // 0 = background, 1 = bone, 2 = tooth
+    R: [0,  84, 255],
+    G: [0, 156, 230],
+    B: [0, 255,  53],
+    A: [0, 255, 255],
+    I: [0,   1,   2],
+    labels: ['Background', 'Bone', 'Tooth'],
+  };
+  nv.volumes[volumeIndex].setColormapLabel(customMap);
+  nv.updateGLVolume();
+}
+
 /* ──────────────────────────────────────────────
    Load scan data from existing API endpoint
 ────────────────────────────────────────────── */
@@ -542,8 +657,10 @@ function renderMetrics(d) {
    set by loadScanData() after the API resolves.
 ────────────────────────────────────────────── */
 async function initNiivue() {
+  showMultiplanarLoader();
   if (typeof Niivue === 'undefined') {
     console.error('[Raha] NiiVue library not loaded — check CDN script tag');
+    hideMultiplanarLoader();
     return;
   }
 
@@ -553,7 +670,10 @@ async function initNiivue() {
   if (AI_MASK_URL && AI_MASK_URL !== 'null' && AI_MASK_URL.trim() !== '')
     volumes.push({ url: AI_MASK_URL.trim(), colormap: 'label4', opacity: 0.8 });
 
-  if (volumes.length === 0) return;
+  if (volumes.length === 0) {
+    hideMultiplanarLoader();
+    return;
+  }
 
   await new Promise(r => setTimeout(r, 50));
 
@@ -570,24 +690,15 @@ async function initNiivue() {
       _nv.updateGLVolume();
     }
 
-    // Apply custom colormap via global registration pipeline
     if (_nv.volumes.length > 1) {
-      const customMap = {
-        R: [0,  77, 255],
-        G: [0, 153, 230],
-        B: [0, 255,  51],
-        A: [0, 255, 255],
-        I: [0,   1,   2],
-      };
-      _nv.addColormap('raha_colors', customMap);
-      _nv.setColormap(_nv.volumes[1].id, 'raha_colors');
-
+      applySegmentationColormap(_nv, 1);
       console.log('Mask Volume Properties:', _nv.volumes[1]);
-      console.log('Registered Colormaps:', _nv.colormaps());
     }
 
   } catch (e) {
     console.error('[Raha] NiiVue loadVolumes failed:', e);
+  } finally {
+    hideMultiplanarLoader();
   }
 
   const ctrl = document.getElementById('mask-controls');
@@ -910,6 +1021,9 @@ function renderCompare(data, treatId) {
 async function initCompareViewers(baseline, treatment) {
   if (typeof Niivue === 'undefined') return;
 
+  setCompareLoader('baseline', true);
+  setCompareLoader('treatment', true);
+
   if (_nvBaseline) { try { _nvBaseline.canvas = null; } catch(_) {} }
   if (_nvCompare)  { try { _nvCompare.canvas  = null; } catch(_) {} }
 
@@ -925,12 +1039,42 @@ async function initCompareViewers(baseline, treatment) {
   _nvBaseline.setSliceType(_nvBaseline.sliceTypeMultiplanar);
   _nvCompare.setSliceType(_nvCompare.sliceTypeMultiplanar);
 
-  const baseUrl  = baseline.imageUrl;
-  const treatUrl = treatment.imageUrl;
+  const baseUrl   = baseline.imageUrl;
+  const treatUrl  = treatment.imageUrl;
+  const baseMask  = baseline.maskUrl;
+  const treatMask = treatment.maskUrl;
 
   const loads = [];
-  if (baseUrl)  loads.push(_nvBaseline.loadVolumes([{ url: baseUrl,  colormap: 'gray' }]).catch(e => console.warn('Baseline NiiVue:', e)));
-  if (treatUrl) loads.push(_nvCompare.loadVolumes( [{ url: treatUrl, colormap: 'gray' }]).catch(e => console.warn('Treatment NiiVue:', e)));
+  if (baseUrl) {
+    const baselineVolumes = [{ url: baseUrl, colormap: 'gray' }];
+    if (baseMask) baselineVolumes.push({ url: baseMask, colormap: 'label4', opacity: 0.8 });
+    loads.push(
+      _nvBaseline.loadVolumes(baselineVolumes).then(() => {
+        if (baseMask) applySegmentationColormap(_nvBaseline, 1);
+        setCompareLoader('baseline', false);
+      }).catch(e => {
+        console.warn('Baseline NiiVue:', e);
+        setCompareLoader('baseline', false);
+      })
+    );
+  } else {
+    setCompareLoader('baseline', false);
+  }
+  if (treatUrl) {
+    const treatmentVolumes = [{ url: treatUrl, colormap: 'gray' }];
+    if (treatMask) treatmentVolumes.push({ url: treatMask, colormap: 'label4', opacity: 0.8 });
+    loads.push(
+      _nvCompare.loadVolumes(treatmentVolumes).then(() => {
+        if (treatMask) applySegmentationColormap(_nvCompare, 1);
+        setCompareLoader('treatment', false);
+      }).catch(e => {
+        console.warn('Treatment NiiVue:', e);
+        setCompareLoader('treatment', false);
+      })
+    );
+  } else {
+    setCompareLoader('treatment', false);
+  }
   await Promise.all(loads);
 
   if (baseUrl && treatUrl) _nvBaseline.syncWith(_nvCompare);

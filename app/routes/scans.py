@@ -15,7 +15,7 @@ from app.db_helpers import (
     save_scan, save_results, get_results_by_scan,
     get_scan_filename, log_event, _conn,
     save_batch, update_scan_batch, get_my_batches, get_batch_detail, get_batch_count,
-    delete_batch, update_scan_masks,
+    delete_batch, update_scan_masks, rename_batch,
 )
 from app.auth_utils import auth_required
 
@@ -196,6 +196,22 @@ def delete_batch_endpoint(batch_id: int, user: dict = Depends(auth_required)):
     return {"message": "Batch deleted"}
 
 
+class RenameBatchBody(BaseModel):
+    title: str
+
+
+@router.put("/batch/{batch_id}")
+def rename_batch_endpoint(batch_id: int, body: RenameBatchBody, user: dict = Depends(auth_required)):
+    title = (body.title or "").strip()
+    if not title:
+        raise HTTPException(400, "Title is required")
+    ok = rename_batch(batch_id, user["id"], title)
+    if not ok:
+        raise HTTPException(404, "Batch not found or not authorized")
+    log_event(user["id"], "batch_renamed", f"Renamed batch {batch_id} to {title}")
+    return {"message": "Batch renamed", "title": title}
+
+
 @router.get("/compare-batches")
 def compare_batches(
     baseline_id: int,
@@ -220,14 +236,14 @@ def compare_batches(
             if not treatment:
                 raise HTTPException(404, f"Treatment batch {treatment_id} not found")
 
-            # Fetch base scan file paths for each batch
+            # Fetch base scan + mask file paths for each batch
             cur.execute(
-                "SELECT base_scan_path FROM scans WHERE batch_id=%s ORDER BY uploaded_at ASC LIMIT 1",
+                "SELECT base_scan_path, ai_mask_path FROM scans WHERE batch_id=%s ORDER BY uploaded_at ASC LIMIT 1",
                 (baseline_id,),
             )
             base_scan = cur.fetchone()
             cur.execute(
-                "SELECT base_scan_path FROM scans WHERE batch_id=%s ORDER BY uploaded_at ASC LIMIT 1",
+                "SELECT base_scan_path, ai_mask_path FROM scans WHERE batch_id=%s ORDER BY uploaded_at ASC LIMIT 1",
                 (treatment_id,),
             )
             treat_scan = cur.fetchone()
@@ -236,16 +252,17 @@ def compare_batches(
     treatment = dict(treatment)
     tok = token or ""
 
-    def serve_url(scan):
-        if scan and scan.get("base_scan_path"):
-            return f"/api/scans/serve/{scan['base_scan_path']}?token={tok}"
+    def serve_url(path):
+        if path:
+            return f"/api/scans/serve/{path}?token={tok}"
         return None
 
     def norm(b, scan):
         return {
             "BV_mm3": b["bv_mm3"], "TV_mm3": b["tv_mm3"], "BV_TV": b["bv_tv"],
             "severity": b["severity"], "diagnosis": b["diagnosis"],
-            "imageUrl": serve_url(scan),
+            "imageUrl": serve_url(scan.get("base_scan_path") if scan else None),
+            "maskUrl": serve_url(scan.get("ai_mask_path") if scan else None),
         }
 
     def delta(a, b):

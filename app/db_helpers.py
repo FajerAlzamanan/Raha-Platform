@@ -195,6 +195,19 @@ def delete_batch(batch_id, user_id):
         print(f"delete_batch error: {e}")
         return False
 
+def rename_batch(batch_id, user_id, title):
+    try:
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE batches SET title=%s WHERE id=%s AND user_id=%s RETURNING id',
+                    (title, batch_id, user_id)
+                )
+                return cur.fetchone() is not None
+    except Exception as e:
+        print(f"rename_batch error: {e}")
+        return False
+
 def get_batch_count(user_id):
     try:
         with _conn() as conn:

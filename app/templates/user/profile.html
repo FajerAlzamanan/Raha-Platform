@@ -324,6 +324,17 @@ function toggleEdit(show) {
   lucide.createIcons();
 }
 
+function syncStoredUser(updates) {
+  for (const store of [localStorage, sessionStorage]) {
+    const raw = store.getItem('raha_user');
+    if (!raw) continue;
+    try {
+      const user = JSON.parse(raw);
+      store.setItem('raha_user', JSON.stringify({ ...user, ...updates }));
+    } catch (_) { /* ignore malformed stored state */ }
+  }
+}
+
 async function saveProfile(e) {
   e.preventDefault();
 
@@ -352,6 +363,7 @@ async function saveProfile(e) {
       body: JSON.stringify({ full_name, professional_role, institution, gender, new_password }),
     });
     profileData = { ...profileData, full_name, professional_role, institution, gender };
+    syncStoredUser({ full_name });
     renderView();
     toggleEdit(false);
     toast('Profile updated successfully!');
