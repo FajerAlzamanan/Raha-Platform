@@ -97,7 +97,7 @@
     display: flex; flex-direction: column; gap: .15rem;
   }
   .metric-value { font-family: 'Outfit', sans-serif; font-size: 1.45rem; font-weight: 700; color: var(--rp); }
-  .metric-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .metric-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); line-height: 1.25; }
   .metrics-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -114,6 +114,63 @@
     font-size: .68rem;
     color: var(--text-secondary);
     line-height: 1.45;
+  }
+  .metric-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .45rem;
+    flex-wrap: nowrap;
+    position: relative;
+  }
+  .metric-info {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--border-subtle);
+    color: var(--rp);
+    font-size: .62rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    background: var(--bg-surface);
+    padding: 0;
+  }
+  .metric-info-popover {
+    position: absolute;
+    top: calc(100% + .45rem);
+    left: 0;
+    width: min(250px, 85vw);
+    padding: .7rem .8rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: .76rem;
+    line-height: 1.5;
+    text-transform: none;
+    letter-spacing: 0;
+    box-shadow: 0 18px 32px rgba(0,0,0,.14);
+    z-index: 10;
+  }
+  .metric-info-popover.hidden {
+    display: none;
+  }
+  .metric-note {
+    padding: .75rem .85rem;
+    border-radius: 10px;
+    border: 1px solid rgba(234,179,8,.24);
+    background: rgba(234,179,8,.08);
+    color: var(--text-secondary);
+    font-size: .78rem;
+    line-height: 1.55;
+  }
+  .metric-note strong {
+    color: var(--text-primary);
   }
 
   /* ── Action bar ── */
@@ -143,6 +200,172 @@
     box-shadow: 0 0 0 3px var(--rp15);
   }
   .modal-input::placeholder { color: var(--text-muted); }
+
+  /* ── Gesture coach ── */
+  .gesture-coach {
+    --gesture-accent: #1a9e8f;
+    position: fixed; inset: 0; z-index: 120;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem;
+    background: rgba(7,20,18,.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .gesture-coach.hidden { display: none; }
+  .gesture-coach__panel {
+    width: min(92vw, 430px);
+    background: #ffffff;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,.24);
+  }
+  body.dark .gesture-coach__panel { background: #141924; }
+  .gesture-coach__progress {
+    height: 4px;
+    background: rgba(26,158,143,.14);
+  }
+  .gesture-coach__progress-fill {
+    height: 100%;
+    width: 33.33%;
+    background: linear-gradient(90deg,var(--gesture-accent),#14b8a6);
+    transition: width .3s ease;
+  }
+  .gesture-coach__preview {
+    position: relative;
+    height: 220px;
+    background: radial-gradient(circle at top, #11312d 0%, #071412 70%);
+    overflow: hidden;
+  }
+  .gesture-coach__preview svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .gesture-coach__badge {
+    position: absolute;
+    top: 14px; left: 14px;
+    padding: .25rem .65rem;
+    border-radius: 9999px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: color-mix(in srgb, var(--gesture-accent) 62%, white);
+    background: color-mix(in srgb, var(--gesture-accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gesture-accent) 30%, transparent);
+  }
+  .gesture-coach__close {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 32px; height: 32px; border-radius: 9999px;
+    border: none; cursor: pointer;
+    color: rgba(255,255,255,.85);
+    background: rgba(255,255,255,.08);
+  }
+  .gesture-coach__body { padding: 1.5rem 1.65rem 1.35rem; }
+  .gesture-coach__eyebrow {
+    margin: 0 0 .45rem;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gesture-accent);
+  }
+  .gesture-coach__title {
+    margin: 0 0 .35rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #0a1a18;
+  }
+  body.dark .gesture-coach__title { color: #f8fafc; }
+  .gesture-coach__subtitle {
+    margin: 0 0 1.1rem;
+    font-size: .95rem;
+    line-height: 1.6;
+    color: #5f7d79;
+  }
+  body.dark .gesture-coach__subtitle { color: #98b4b0; }
+  .gesture-coach__brief {
+    display: grid;
+    gap: .45rem;
+    margin: 0 0 1.2rem;
+    padding: .9rem 1rem;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--gesture-accent) 8%, #f6fbfb);
+    border: 1px solid color-mix(in srgb, var(--gesture-accent) 16%, transparent);
+  }
+  .gesture-coach__brief-item {
+    font-size: .84rem;
+    line-height: 1.5;
+    color: #46635f;
+  }
+  body.dark .gesture-coach__brief {
+    background: color-mix(in srgb, var(--gesture-accent) 10%, #0f1724);
+  }
+  body.dark .gesture-coach__brief-item { color: #a8c2be; }
+  .gesture-coach__dots {
+    display: flex; gap: .45rem; align-items: center;
+    margin-bottom: 1.15rem;
+  }
+  .gesture-coach__dot {
+    width: 8px; height: 8px; border-radius: 9999px; border: none;
+    background: #d0eae8; cursor: pointer;
+    transition: all .25s ease;
+  }
+  .gesture-coach__dot.active {
+    width: 28px;
+    background: var(--gesture-accent);
+  }
+  .gesture-coach__actions {
+    display: flex; gap: .75rem;
+  }
+  .gesture-coach__skip,
+  .gesture-coach__next {
+    flex: 1;
+    border-radius: 14px;
+    padding: .8rem 1rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .gesture-coach__skip {
+    border: 1px solid color-mix(in srgb, var(--gesture-accent) 20%, transparent);
+    background: transparent;
+    color: #6a8a86;
+  }
+  .gesture-coach__next {
+    border: none;
+    background: linear-gradient(135deg,var(--gesture-accent),#14b8a6);
+    color: white;
+    box-shadow: 0 14px 28px color-mix(in srgb, var(--gesture-accent) 22%, transparent);
+  }
+  .viewer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: .5rem;
+  }
+  .viewer-help-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: .9rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform .18s ease, border-color .18s ease, color .18s ease;
+  }
+  .viewer-help-btn:hover {
+    transform: translateY(-1px);
+    border-color: var(--rp);
+    color: var(--rp);
+  }
 </style>
 {% endblock %}
 
@@ -200,11 +423,14 @@
       <div style="display:flex;gap:1.5rem;align-items:flex-start">
 
         <!-- Niivue viewer (70%) -->
-        <div style="flex:0 0 70%" class="card p-3">
-          <p class="text-xs font-semibold uppercase mb-2" style="color:var(--text-muted);letter-spacing:.06em">
-            <i data-lucide="layers" style="width:12px;height:12px;display:inline;vertical-align:middle"></i>
-            Multiplanar View
-          </p>
+        <div style="flex:0 0 68%" class="card p-3">
+          <div class="viewer-head">
+            <p class="text-xs font-semibold uppercase" style="color:var(--text-muted);letter-spacing:.06em;margin:0">
+              <i data-lucide="layers" style="width:12px;height:12px;display:inline;vertical-align:middle"></i>
+              Multiplanar View
+            </p>
+            <button type="button" class="viewer-help-btn" onclick="showGestureCoach(true)" aria-label="Open viewer help">?</button>
+          </div>
           <div class="viewer-stage">
             <canvas id="gl"></canvas>
             <div id="multiplanar-loader" class="multiplanar-loader" aria-hidden="true">
@@ -221,6 +447,9 @@
                       background:var(--bg-surface);border:1px solid var(--border-subtle)">
             <span style="font-size:.78rem;font-weight:700;text-transform:uppercase;
                          letter-spacing:.05em;color:var(--text-muted)">AI Mask</span>
+            <button id="mask-toggle-btn" type="button" onclick="toggleMaskVisibility()" class="btn-outline" style="padding:.35rem .7rem;font-size:.75rem;line-height:1.2">
+              Hide Mask
+            </button>
             <!-- Label legend -->
             <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:600">
               <span style="width:10px;height:10px;border-radius:2px;background:#549cff;display:inline-block"></span>Bone
@@ -237,7 +466,7 @@
         </div>
 
         <!-- Metrics panel (30%) — Clinical Morphometric Dashboard -->
-        <div style="flex:0 0 calc(30% - 1.5rem);display:flex;flex-direction:column;gap:.6rem">
+        <div style="flex:0 0 calc(32% - 1.5rem);display:flex;flex-direction:column;gap:.6rem">
 
           <!-- Section header -->
           <div style="padding:.5rem .75rem;border-radius:8px;
@@ -248,10 +477,18 @@
             <p style="font-size:.7rem;color:var(--text-muted);margin:.1rem 0 0">µCT morphometric indices</p>
           </div>
 
+          <div class="metric-note">
+            <strong>AI-assisted results:</strong> These measurements are generated automatically and are intended to support — not replace — your clinical review. Please verify all findings against the original scan and segmentation mask before drawing any conclusions.
+          </div>
+
           <div class="metrics-grid">
             <!-- Severity card -->
             <div class="metric-card metric-card--hero metric-card--span-2">
-              <span class="metric-label">Severity Classification</span>
+              <div class="metric-label-row">
+                <span class="metric-label">Severity Classification</span>
+                <button type="button" class="metric-info" onclick="toggleMetricInfo(event)" data-info="A summary of the detected condition level based on the scan measurements and diagnosis.">i</button>
+                <div class="metric-info-popover hidden"></div>
+              </div>
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem">
                 <div style="display:flex;flex-direction:column;gap:.25rem">
                   <span id="diagnosis-text" class="font-heading font-bold"
@@ -264,7 +501,11 @@
 
             <!-- BV -->
             <div class="metric-card metric-card--compact">
-              <span class="metric-label">Bone Volume</span>
+              <div class="metric-label-row">
+                <span class="metric-label">Bone Volume</span>
+                <button type="button" class="metric-info" onclick="toggleMetricInfo(event)" data-info="The measured volume of segmented bone inside the selected region of interest.">i</button>
+                <div class="metric-info-popover hidden"></div>
+              </div>
               <div style="display:flex;align-items:baseline;gap:.35rem">
                 <span id="val-bv" class="metric-value">—</span>
                 <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm³</span>
@@ -273,7 +514,11 @@
 
             <!-- BV/TV -->
             <div class="metric-card metric-card--compact">
-              <span class="metric-label">BV/TV Ratio</span>
+              <div class="metric-label-row">
+                <span class="metric-label">BV/TV Ratio</span>
+                <button type="button" class="metric-info" onclick="toggleMetricInfo(event)" data-info="Bone volume divided by total volume. Higher values generally indicate denser bone in the analyzed region.">i</button>
+                <div class="metric-info-popover hidden"></div>
+              </div>
               <div style="display:flex;align-items:baseline;gap:.35rem">
                 <span id="val-bvtv" class="metric-value">—</span>
                 <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">%</span>
@@ -282,10 +527,10 @@
 
             <!-- TV with footnote -->
             <div class="metric-card metric-card--compact metric-card--span-2">
-              <div style="display:flex;align-items:center;gap:.35rem">
+              <div class="metric-label-row">
                 <span class="metric-label">Total Volume</span>
-                <span title="Defined dynamically as Bone + Tooth volume to standardize ROIs across specimens"
-                      style="cursor:help;font-size:.75rem;color:var(--rp);font-weight:700;line-height:1">ⓘ</span>
+                <button type="button" class="metric-info" onclick="toggleMetricInfo(event)" data-info="The full analyzed region volume, defined here as bone plus tooth volume to standardize the ROI across specimens.">i</button>
+                <div class="metric-info-popover hidden"></div>
               </div>
               <div style="display:flex;align-items:baseline;gap:.35rem">
                 <span id="val-tv" class="metric-value">—</span>
@@ -296,7 +541,11 @@
 
             <!-- Tb.Th -->
             <div class="metric-card metric-card--compact">
-              <span class="metric-label">Trabecular Thickness</span>
+              <div class="metric-label-row">
+                <span class="metric-label">Trabecular Thickness</span>
+                <button type="button" class="metric-info" onclick="toggleMetricInfo(event)" data-info="The average thickness of the trabecular bone structures in the analyzed region.">i</button>
+                <div class="metric-info-popover hidden"></div>
+              </div>
               <div style="display:flex;align-items:baseline;gap:.35rem">
                 <span id="val-tbth" class="metric-value" style="font-size:1.2rem">—</span>
                 <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
@@ -305,7 +554,11 @@
 
             <!-- Tb.Sp -->
             <div class="metric-card metric-card--compact">
-              <span class="metric-label">Trabecular Separation</span>
+              <div class="metric-label-row">
+                <span class="metric-label">Trabecular Separation</span>
+                <button type="button" class="metric-info" onclick="toggleMetricInfo(event)" data-info="The average spacing or gap between trabecular bone structures in the analyzed region.">i</button>
+                <div class="metric-info-popover hidden"></div>
+              </div>
               <div style="display:flex;align-items:baseline;gap:.35rem">
                 <span id="val-tbsp" class="metric-value" style="font-size:1.2rem">—</span>
                 <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
@@ -477,6 +730,31 @@
 
 </div>
 
+<div id="gesture-coach" class="gesture-coach hidden" role="dialog" aria-modal="true" aria-labelledby="gesture-title" onclick="if(event.target===this)dismissGestureCoach()">
+  <div class="gesture-coach__panel">
+    <div class="gesture-coach__progress"><div id="gesture-progress" class="gesture-coach__progress-fill"></div></div>
+    <div class="gesture-coach__preview">
+      <div id="gesture-demo"></div>
+      <div id="gesture-badge" class="gesture-coach__badge">GESTURE 1 OF 3</div>
+      <button class="gesture-coach__close" onclick="dismissGestureCoach()" aria-label="Close tutorial">✕</button>
+    </div>
+    <div class="gesture-coach__body">
+      <p class="gesture-coach__eyebrow">How to navigate</p>
+      <h2 id="gesture-title" class="gesture-coach__title">Move Axis to Explore</h2>
+      <p id="gesture-subtitle" class="gesture-coach__subtitle">Drag the crosshair to slice through the volume.</p>
+      <div class="gesture-coach__brief">
+        <div class="gesture-coach__brief-item"><strong>Multiplanar View:</strong> explore the scan from slice and 3D angles in one place.</div>
+        <div class="gesture-coach__brief-item"><strong>AI Mask:</strong> use the legend and opacity slider below the view to inspect bone and tooth overlays.</div>
+      </div>
+      <div id="gesture-dots" class="gesture-coach__dots"></div>
+      <div class="gesture-coach__actions">
+        <button class="gesture-coach__skip" onclick="dismissGestureCoach()">Skip tutorial</button>
+        <button id="gesture-next" class="gesture-coach__next" onclick="nextGestureStep()">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ Report Issue Modal (Vanilla JS) ══ -->
 <div id="reportIssueModal" class="fixed inset-0 z-50 flex items-center justify-center hidden"
      style="background:rgba(0,0,0,0.5)" onclick="if(event.target===this)toggleModal(false)">
@@ -537,6 +815,132 @@ let _detailedReady = false;
 let _nvBaseline = null;
 let _nvCompare  = null;
 let _compareTabReady = false;
+let _gestureStep = 0;
+let _gestureTimer = null;
+let _maskVisible = true;
+const GESTURE_COACH_STORAGE_KEY = `raha_gesture_coach_seen_scan_${SCAN_ID}_v1`;
+
+const GESTURES = [
+  {
+    accent: '#1a9e8f',
+    title: 'Move Axis to Explore',
+    subtitle: 'Drag the crosshair to slice through the volume with precise control.',
+    demo: () => `
+      <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+        <rect width="200" height="160" rx="12" fill="#0a1a18"/>
+        <g opacity=".35" stroke="#1a3330" stroke-width=".7">
+          <path d="M20 0v160M40 0v160M60 0v160M80 0v160M100 0v160M120 0v160M140 0v160M160 0v160M180 0v160"/>
+          <path d="M0 20h200M0 40h200M0 60h200M0 80h200M0 100h200M0 120h200M0 140h200"/>
+        </g>
+        <ellipse cx="82" cy="76" rx="34" ry="26" fill="#285f57" opacity=".72"/>
+        <ellipse cx="126" cy="92" rx="24" ry="18" fill="#204943" opacity=".78"/>
+        <line x1="102" y1="0" x2="102" y2="160" stroke="#1a9e8f" stroke-width="1.5" stroke-dasharray="5 4">
+          <animate attributeName="x1" values="64;138;102;64" dur="4s" repeatCount="indefinite"/>
+          <animate attributeName="x2" values="64;138;102;64" dur="4s" repeatCount="indefinite"/>
+        </line>
+        <line x1="0" y1="84" x2="200" y2="84" stroke="#1a9e8f" stroke-width="1.5" stroke-dasharray="5 4">
+          <animate attributeName="y1" values="58;108;84;58" dur="4s" repeatCount="indefinite"/>
+          <animate attributeName="y2" values="58;108;84;58" dur="4s" repeatCount="indefinite"/>
+        </line>
+        <circle cx="102" cy="84" r="7" fill="none" stroke="#7ff0e4" stroke-width="1.8">
+          <animate attributeName="cx" values="64;138;102;64" dur="4s" repeatCount="indefinite"/>
+          <animate attributeName="cy" values="58;108;84;58" dur="4s" repeatCount="indefinite"/>
+        </circle>
+        <path d="M64 58 L138 108" fill="none" stroke="#7ff0e4" stroke-width="1.2" stroke-dasharray="4 5" opacity=".55">
+          <animate attributeName="opacity" values=".18;.58;.18" dur="4s" repeatCount="indefinite"/>
+        </path>
+        <g fill="#eefcf9" opacity=".95">
+          <ellipse cx="122" cy="104" rx="6" ry="8">
+            <animate attributeName="cx" values="84;158;122;84" dur="4s" repeatCount="indefinite"/>
+            <animate attributeName="cy" values="78;128;104;78" dur="4s" repeatCount="indefinite"/>
+          </ellipse>
+          <rect x="116" y="110" width="12" height="18" rx="6">
+            <animate attributeName="x" values="78;152;116;78" dur="4s" repeatCount="indefinite"/>
+            <animate attributeName="y" values="84;134;110;84" dur="4s" repeatCount="indefinite"/>
+          </rect>
+          <circle cx="122" cy="114" r="11" fill="none" stroke="#7ff0e4" stroke-width="1.1" opacity=".35">
+            <animate attributeName="cx" values="84;158;122;84" dur="4s" repeatCount="indefinite"/>
+            <animate attributeName="cy" values="92;142;114;92" dur="4s" repeatCount="indefinite"/>
+            <animate attributeName="r" values="9;14;9" dur="4s" repeatCount="indefinite"/>
+          </circle>
+        </g>
+        <text x="100" y="146" text-anchor="middle" fill="#7ff0e4" font-size="8.6" font-family="Outfit, sans-serif" opacity=".82">DRAG THE AXIS ACROSS THE SLICES</text>
+      </svg>`
+  },
+  {
+    accent: '#0e7a6e',
+    title: 'Press and Drag to Rotate',
+    subtitle: 'Hold and move in the 3D view to rotate the model and inspect new angles.',
+    demo: () => `
+      <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+        <rect width="200" height="160" rx="12" fill="#0a1a18"/>
+        <ellipse cx="100" cy="134" rx="30" ry="7" fill="#1a9e8f" opacity=".16"/>
+        <path d="M55 78a45 34 0 0 1 90 0" fill="none" stroke="#1a9e8f" stroke-width="1.2" stroke-dasharray="5 4" opacity=".4"/>
+        <polygon points="146,72 146,84 154,78" fill="#1a9e8f" opacity=".6"/>
+        <polygon points="54,72 54,84 46,78" fill="#1a9e8f" opacity=".6"/>
+        <g>
+          <rect x="73" y="44" width="54" height="54" rx="4" fill="#1a9e8f" opacity=".88" stroke="#82f0e6" stroke-width=".7">
+            <animateTransform attributeName="transform" type="skewY" values="0;10;0;-10;0" dur="4s" repeatCount="indefinite"/>
+          </rect>
+        </g>
+        <path d="M60 110 C84 130, 116 130, 140 110" fill="none" stroke="#7ff0e4" stroke-width="1.2" stroke-dasharray="4 5" opacity=".45">
+          <animate attributeName="opacity" values=".18;.6;.18" dur="4s" repeatCount="indefinite"/>
+        </path>
+        <g fill="#eefcf9" opacity=".95">
+          <ellipse cx="145" cy="84" rx="6" ry="8">
+            <animate attributeName="cx" values="55;145;55" dur="4s" repeatCount="indefinite"/>
+          </ellipse>
+          <rect x="139" y="90" width="12" height="18" rx="6">
+            <animate attributeName="x" values="49;139;49" dur="4s" repeatCount="indefinite"/>
+          </rect>
+          <circle cx="145" cy="96" r="11" fill="none" stroke="#7ff0e4" stroke-width="1.1" opacity=".32">
+            <animate attributeName="cx" values="55;145;55" dur="4s" repeatCount="indefinite"/>
+            <animate attributeName="r" values="8;14;8" dur="4s" repeatCount="indefinite"/>
+          </circle>
+        </g>
+        <text x="100" y="146" text-anchor="middle" fill="#7ff0e4" font-size="8.6" font-family="Outfit, sans-serif" opacity=".82">PRESS, THEN DRAG TO ROTATE</text>
+      </svg>`
+  },
+  {
+    accent: '#14b8a6',
+    title: 'Two Fingers to Zoom',
+    subtitle: 'Pinch with two fingers to zoom in and out while keeping the region centered.',
+    demo: () => `
+      <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+        <rect width="200" height="160" rx="12" fill="#0a1a18"/>
+        <g>
+          <circle cx="100" cy="76" r="18" fill="none" stroke="#1a9e8f" stroke-width="1.2" opacity=".45">
+            <animate attributeName="r" values="18;34;18" dur="4s" repeatCount="indefinite"/>
+          </circle>
+          <ellipse cx="98" cy="74" rx="30" ry="24" fill="#2d6e64" opacity=".7">
+            <animateTransform attributeName="transform" type="scale" values="1 1 100 76;1.18 1.18 100 76;1 1 100 76" dur="4s" repeatCount="indefinite"/>
+          </ellipse>
+        </g>
+        <path d="M72 74 L54 74 M128 74 L146 74" fill="none" stroke="#7ff0e4" stroke-width="1.2" stroke-linecap="round" opacity=".6">
+          <animate attributeName="opacity" values=".2;.7;.2" dur="4s" repeatCount="indefinite"/>
+        </path>
+        <g fill="#eefcf9" opacity=".95">
+          <g>
+            <ellipse cx="70" cy="74" rx="6" ry="8">
+              <animate attributeName="cx" values="70;48;70" dur="4s" repeatCount="indefinite"/>
+            </ellipse>
+            <rect x="64" y="80" width="12" height="18" rx="6">
+              <animate attributeName="x" values="64;42;64" dur="4s" repeatCount="indefinite"/>
+            </rect>
+          </g>
+          <g>
+            <ellipse cx="130" cy="74" rx="6" ry="8">
+              <animate attributeName="cx" values="130;152;130" dur="4s" repeatCount="indefinite"/>
+            </ellipse>
+            <rect x="124" y="80" width="12" height="18" rx="6">
+              <animate attributeName="x" values="124;146;124" dur="4s" repeatCount="indefinite"/>
+            </rect>
+          </g>
+        </g>
+        <text x="100" y="146" text-anchor="middle" fill="#7ff0e4" font-size="8.6" font-family="Outfit, sans-serif" opacity=".82">PINCH IN OR OUT TO ZOOM</text>
+      </svg>`
+  }
+];
 
 function showMultiplanarLoader() {
   document.getElementById('multiplanar-loader')?.classList.remove('is-hidden');
@@ -567,6 +971,64 @@ function applySegmentationColormap(nv, volumeIndex = 1) {
   nv.updateGLVolume();
 }
 
+function renderGestureCoach() {
+  const gesture = GESTURES[_gestureStep];
+  const coachEl = document.getElementById('gesture-coach');
+  coachEl.style.setProperty('--gesture-accent', gesture.accent || '#1a9e8f');
+  document.getElementById('gesture-demo').innerHTML = gesture.demo();
+  document.getElementById('gesture-title').textContent = gesture.title;
+  document.getElementById('gesture-subtitle').textContent = gesture.subtitle;
+  document.getElementById('gesture-badge').textContent = `GESTURE ${_gestureStep + 1} OF ${GESTURES.length}`;
+  document.getElementById('gesture-progress').style.width = `${((_gestureStep + 1) / GESTURES.length) * 100}%`;
+  document.getElementById('gesture-next').textContent = _gestureStep < GESTURES.length - 1 ? 'Next' : 'Got it, explore!';
+  const dots = document.getElementById('gesture-dots');
+  dots.innerHTML = GESTURES.map((_, i) =>
+    `<button class="gesture-coach__dot ${i === _gestureStep ? 'active' : ''}" onclick="goGestureStep(${i})"></button>`
+  ).join('');
+}
+
+function startGestureCoach() {
+  clearInterval(_gestureTimer);
+  _gestureTimer = setInterval(() => {
+    if (_gestureStep < GESTURES.length - 1) {
+      _gestureStep += 1;
+      renderGestureCoach();
+    } else {
+      clearInterval(_gestureTimer);
+    }
+  }, 4000);
+}
+
+function showGestureCoach(force = false) {
+  if (!force && localStorage.getItem(GESTURE_COACH_STORAGE_KEY) === '1') return;
+  document.getElementById('gesture-coach').classList.remove('hidden');
+  _gestureStep = 0;
+  renderGestureCoach();
+  startGestureCoach();
+}
+
+function goGestureStep(step) {
+  _gestureStep = step;
+  renderGestureCoach();
+  clearInterval(_gestureTimer);
+}
+
+function nextGestureStep() {
+  if (_gestureStep < GESTURES.length - 1) {
+    _gestureStep += 1;
+    renderGestureCoach();
+    clearInterval(_gestureTimer);
+  } else {
+    dismissGestureCoach();
+  }
+}
+
+function dismissGestureCoach() {
+  localStorage.setItem(GESTURE_COACH_STORAGE_KEY, '1');
+  clearInterval(_gestureTimer);
+  document.getElementById('gesture-coach').classList.add('hidden');
+}
+
 /* ──────────────────────────────────────────────
    Load scan data from existing API endpoint
 ────────────────────────────────────────────── */
@@ -589,8 +1051,9 @@ async function loadScanData() {
     _scanData = data;
     renderMetrics(data);
     await initNiivue();
-    initSeverityGauge(data.bv_tv);
+    initSeverityGauge(data);
     initZAxisPreview();
+    setTimeout(showGestureCoach, 500);
   } catch (err) {
     console.error('[Raha] loadScanData failed:', err);
     document.getElementById('analysis-loading').innerHTML =
@@ -703,11 +1166,50 @@ async function initNiivue() {
 
   const ctrl = document.getElementById('mask-controls');
   if (ctrl) ctrl.style.display = volumes.length > 1 ? 'flex' : 'none';
+  if (volumes.length > 1) {
+    _maskVisible = true;
+    syncMaskToggleButton();
+  }
 }
 
 function onOpacityChange(val) {
   if (!_nv || _nv.volumes.length < 2) return;
-  _nv.setOpacity(1, parseFloat(val));
+  if (_maskVisible) _nv.setOpacity(1, parseFloat(val));
+}
+
+function syncMaskToggleButton() {
+  const btn = document.getElementById('mask-toggle-btn');
+  if (!btn) return;
+  btn.textContent = _maskVisible ? 'Hide Mask' : 'Show Mask';
+}
+
+function closeMetricInfos(exceptRow = null) {
+  document.querySelectorAll('.metric-label-row').forEach((row) => {
+    if (exceptRow && row === exceptRow) return;
+    const popover = row.querySelector('.metric-info-popover');
+    if (popover) popover.classList.add('hidden');
+  });
+}
+
+function toggleMetricInfo(event) {
+  event.stopPropagation();
+  const button = event.currentTarget;
+  const row = button.closest('.metric-label-row');
+  const popover = row?.querySelector('.metric-info-popover');
+  if (!row || !popover) return;
+  const shouldOpen = popover.classList.contains('hidden');
+  closeMetricInfos(row);
+  popover.textContent = button.dataset.info || '';
+  popover.classList.toggle('hidden', !shouldOpen);
+}
+
+function toggleMaskVisibility() {
+  if (!_nv || _nv.volumes.length < 2) return;
+  _maskVisible = !_maskVisible;
+  const opacityInput = document.querySelector('#mask-controls input[type="range"]');
+  const opacity = parseFloat(opacityInput?.value || '0.7');
+  _nv.setOpacity(1, _maskVisible ? opacity : 0);
+  syncMaskToggleButton();
 }
 
 function onColormapChange(val) {
@@ -718,7 +1220,10 @@ function onColormapChange(val) {
 /* ──────────────────────────────────────────────
    Chart.js – Severity Gauge (half-doughnut)
 ────────────────────────────────────────────── */
-function initSeverityGauge(bvTv) {
+function initSeverityGauge(data) {
+  const bvTv = data?.bv_tv;
+  const diagnosis = data?.diagnosis ?? 'Unknown';
+  const severity = data?.severity ?? 'pending';
   const val  = typeof bvTv === 'number' ? bvTv : 0;
   const ctx  = document.getElementById('severity-gauge-chart').getContext('2d');
 
@@ -757,7 +1262,18 @@ function initSeverityGauge(bvTv) {
   });
 
   // Display the numeric BV/TV value in the centre label
-  document.getElementById('gauge-bvtv-val').textContent = val.toFixed ? val.toFixed(4) : val;
+  const gaugeValueEl = document.getElementById('gauge-bvtv-val');
+  const gaugeColor = diagnosis === 'Healthy'
+    ? '#378d8c'
+    : severity === 'severe'
+      ? '#dc2626'
+      : severity === 'moderate'
+        ? '#a16207'
+        : severity === 'mild'
+          ? '#378d8c'
+          : 'var(--rp)';
+  gaugeValueEl.textContent = val.toFixed ? val.toFixed(4) : val;
+  gaugeValueEl.style.color = gaugeColor;
 }
 
 /* ──────────────────────────────────────────────
@@ -843,16 +1359,26 @@ function switchTab(name, btn) {
 function exportCSV() {
   if (!_scanData) { toast('No scan data loaded yet.', 'err'); return; }
   const d = _scanData;
+  const severityLabel = d.diagnosis === 'Healthy'
+    ? 'Normal'
+    : (d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Pending');
   const rows = [
     ['Field', 'Value'],
     ['Scan ID', SCAN_ID],
     ['Analysis Title', d.title ?? ''],
-    ['Date', d.created_at ?? ''],
+    ['Created At', d.created_at ?? ''],
+    ['Generated At', new Date().toISOString()],
     ['BV mm³', d.bv_mm3 ?? ''],
     ['TV mm³', d.tv_mm3 ?? ''],
     ['BV/TV', d.bv_tv ?? ''],
+    ['BV/TV %', d.bv_tv != null ? (Number(d.bv_tv) * 100).toFixed(2) : ''],
+    ['Trabecular Thickness (mm)', d.tb_th ?? ''],
+    ['Trabecular Separation (mm)', d.tb_sp ?? ''],
     ['Diagnosis', d.diagnosis ?? ''],
-    ['Severity', d.severity ?? 'N/A'],
+    ['Severity', severityLabel],
+    ['Base Scan URL', d.base_scan_url ?? ''],
+    ['AI Mask URL', d.ai_mask_url ?? ''],
+    ['Report Note', 'AI-assisted results: These measurements are generated automatically and are intended to support — not replace — your clinical review. Please verify all findings against the original scan and segmentation mask before drawing any conclusions.'],
   ];
   const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -875,7 +1401,119 @@ async function exportPDF() {
   // Give the WebGL canvas a moment to settle
   await new Promise(r => setTimeout(r, 300));
 
-  const element = document.getElementById('analysis-body');
+  const d = _scanData;
+  const severityLabel = d.diagnosis === 'Healthy'
+    ? 'Normal'
+    : (d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Pending');
+  const severityColor = d.diagnosis === 'Healthy'
+    ? '#378d8c'
+    : d.severity === 'severe'
+      ? '#dc2626'
+      : d.severity === 'moderate'
+        ? '#a16207'
+        : d.severity === 'mild'
+          ? '#378d8c'
+          : '#1a9e8f';
+  const createdAt = d.created_at ? fmtDate(d.created_at) : '—';
+  const generatedAt = new Date().toLocaleString();
+  const scanImage = document.getElementById('gl')?.toDataURL?.('image/png') || '';
+  const gaugeImage = document.getElementById('severity-gauge-chart')?.toDataURL?.('image/png') || '';
+  const zaxisImage = document.getElementById('zaxis-chart')?.toDataURL?.('image/png') || '';
+
+  const metricRows = [
+    ['Bone Volume', d.bv_mm3 != null ? `${Number(d.bv_mm3).toFixed(2)} mm³` : '—'],
+    ['Total Volume', d.tv_mm3 != null ? `${Number(d.tv_mm3).toFixed(2)} mm³` : '—'],
+    ['BV/TV Ratio', d.bv_tv != null ? `${(Number(d.bv_tv) * 100).toFixed(2)}%` : '—'],
+    ['Trabecular Thickness', d.tb_th != null ? `${Number(d.tb_th).toFixed(4)} mm` : '—'],
+    ['Trabecular Separation', d.tb_sp != null ? `${Number(d.tb_sp).toFixed(4)} mm` : '—'],
+  ];
+
+  const report = document.createElement('div');
+  report.style.cssText = `
+    width: 1120px;
+    padding: 40px;
+    background: #ffffff;
+    color: #0f172a;
+    font-family: Inter, Arial, sans-serif;
+    line-height: 1.5;
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    z-index: -1;
+  `;
+  report.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px;">
+      <div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#1a9e8f;margin-bottom:8px;">Raha Analysis Report</div>
+        <h1 style="margin:0;font-size:30px;line-height:1.15;font-family:Outfit, Inter, sans-serif;">${esc(d.title ?? `Scan #${SCAN_ID}`)}</h1>
+        <p style="margin:10px 0 0;font-size:14px;color:#475569;">Comprehensive export of the current result view, measurements, and visual summaries.</p>
+      </div>
+      <div style="min-width:250px;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;background:#f8fafc;">
+        <div style="font-size:12px;color:#64748b;">Scan ID</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:10px;">${SCAN_ID}</div>
+        <div style="font-size:12px;color:#64748b;">Created</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:8px;">${createdAt}</div>
+        <div style="font-size:12px;color:#64748b;">Generated</div>
+        <div style="font-size:14px;font-weight:600;">${generatedAt}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.25fr .95fr;gap:22px;align-items:start;margin-bottom:22px;">
+      <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Multiplanar View</div>
+        <div style="height:360px;border-radius:14px;background:#0a1a18;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          ${scanImage ? `<img src="${scanImage}" alt="Scan view" style="width:100%;height:100%;object-fit:cover;display:block;">` : `<div style="color:#e2e8f0;font-size:14px;">Viewer snapshot unavailable</div>`}
+        </div>
+      </div>
+      <div style="display:grid;gap:16px;">
+        <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div>
+              <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Clinical Summary</div>
+              <div style="font-size:24px;font-weight:800;color:#0f172a;">${esc(d.diagnosis ?? 'Unknown')}</div>
+            </div>
+            <div style="padding:8px 12px;border-radius:999px;background:${severityColor}1a;color:${severityColor};font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">${esc(severityLabel)}</div>
+          </div>
+          <p style="margin:14px 0 0;font-size:14px;color:#475569;">${esc(document.getElementById('severity-desc')?.textContent || '')}</p>
+        </div>
+        <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
+          <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Measurements</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            ${metricRows.map(([label, value]) => `
+              <div style="border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;background:#f8fafc;">
+                <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">${label}</div>
+                <div style="font-size:18px;font-weight:800;color:#1a9e8f;">${value}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px;">
+      <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Severity Gauge</div>
+        <div style="height:280px;display:flex;align-items:center;justify-content:center;">
+          ${gaugeImage ? `<img src="${gaugeImage}" alt="Severity gauge" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">` : `<div style="color:#64748b;font-size:14px;">Gauge preview unavailable</div>`}
+        </div>
+      </div>
+      <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Z-Axis Bone Profile</div>
+        <div style="height:280px;display:flex;align-items:center;justify-content:center;">
+          ${zaxisImage ? `<img src="${zaxisImage}" alt="Z-axis profile" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">` : `<div style="color:#64748b;font-size:14px;">Profile preview unavailable</div>`}
+        </div>
+      </div>
+    </div>
+
+    <div style="border:1px solid rgba(234,179,8,.24);border-radius:16px;padding:16px 18px;background:rgba(234,179,8,.08);">
+      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#92400e;margin-bottom:8px;">Important Note</div>
+      <div style="font-size:14px;color:#475569;">
+        <strong style="color:#0f172a;">AI-assisted results:</strong> These measurements are generated automatically and are intended to support — not replace — your clinical review. Please verify all findings against the original scan and segmentation mask before drawing any conclusions.
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(report);
   const opt = {
     margin:      [10, 10, 10, 10],
     filename:    `raha_scan_${SCAN_ID}.pdf`,
@@ -885,9 +1523,22 @@ async function exportPDF() {
   };
 
   try {
-    await html2pdf().set(opt).from(element).save();
+    const worker = html2pdf().set(opt).from(report);
+    const pdfUrl = await worker.outputPdf('bloburl');
+    const preview = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+    if (!preview) {
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `raha_scan_${SCAN_ID}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
   } catch (e) {
     toast('PDF export failed: ' + e.message, 'err');
+  } finally {
+    report.remove();
   }
 }
 
@@ -1091,5 +1742,6 @@ function toggleModal(show) {
 // Kick off
 loadScanData();
 lucide.createIcons();
+document.addEventListener('click', () => closeMetricInfos());
 </script>
 {% endblock %}
