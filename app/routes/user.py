@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from psycopg2.extras import RealDictCursor
 from app.db_helpers import get_user_by_id, update_user, delete_user
 from app.auth_utils import auth_required, hash_password, validate_password
+from app.name_utils import split_title_from_name
 
 router = APIRouter()
 
@@ -30,15 +31,21 @@ def get_profile(user: dict = Depends(auth_required)):
     row = get_user_by_id(user["id"])
     if not row:
         raise HTTPException(404, "User not found")
+    full_name, title = split_title_from_name(row["full_name"], row.get("title"))
+    if full_name != row["full_name"] or title != row.get("title"):
+        update_user(user["id"], {"full_name": full_name, "title": title})
+        row["full_name"] = full_name
+        row["title"] = title
     row.pop("password_hash", None)
     return row
 
 
 @router.put("/me")
 def update_profile(body: ProfileUpdate, user: dict = Depends(auth_required)):
+    full_name, title = split_title_from_name(body.full_name, body.title)
     fields = {
-        "full_name":        body.full_name,
-        "title":            body.title,
+        "full_name":        full_name,
+        "title":            title,
         "gender":           body.gender,
         "professional_role": body.professional_role,
         "institution":      body.institution,

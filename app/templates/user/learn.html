@@ -1,51 +1,356 @@
 {% extends "base.html" %}
 {% block title %}Guides & Tutorials – Raha{% endblock %}
+
+{% block head %}
+<style>
+  .tutorial-layout {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+  .tutorial-nav {
+    position: sticky;
+    top: 6.5rem;
+    border-right: 1px solid var(--border-subtle);
+    padding-right: 1.25rem;
+  }
+  .tutorial-nav a {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .55rem .7rem;
+    border-radius: 7px;
+    color: var(--text-secondary);
+    font-size: .84rem;
+    text-decoration: none;
+    transition: color .2s, background .2s;
+  }
+  .tutorial-nav a:hover { color: var(--rp); background: var(--rp10); }
+  .tutorial-nav a i { width: 15px; height: 15px; flex-shrink: 0; }
+  .tutorial-section {
+    scroll-margin-top: 7rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .tutorial-section:last-child { border-bottom: none; }
+  .tutorial-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(18rem, .85fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .video-frame {
+    aspect-ratio: 16 / 9;
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #0a1a18;
+    border: 1px solid rgba(55,141,140,.25);
+  }
+  .video-frame video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    background: #0a1a18;
+  }
+  .video-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .65rem;
+    padding: 1.5rem;
+    text-align: center;
+    background: #0a1a18;
+    color: #d8f7f2;
+  }
+  .video-placeholder.has-screenshot {
+    padding: 0;
+    justify-content: center;
+    background: #0a1a18;
+  }
+  .video-placeholder__screenshot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+  }
+  .video-placeholder__play {
+    position: relative;
+    z-index: 2;
+    width: 4.4rem;
+    height: 4.4rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    background: rgba(55, 141, 140, .92);
+    border: 2px solid rgba(255,255,255,.82);
+  }
+  .video-placeholder__play i {
+    width: 1.7rem;
+    height: 1.7rem;
+    margin-left: .18rem;
+  }
+  .video-placeholder__icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    background: var(--rp);
+  }
+  .tutorial-step {
+    display: grid;
+    grid-template-columns: 1.55rem minmax(0, 1fr);
+    gap: .7rem;
+    align-items: start;
+  }
+  .tutorial-step__num {
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--rp10);
+    color: var(--rp);
+    font-size: .72rem;
+    font-weight: 800;
+  }
+  .recording-note {
+    border-left: 3px solid var(--rp);
+    background: var(--rp10);
+    padding: .7rem .85rem;
+    border-radius: 0 7px 7px 0;
+  }
+  @media (max-width: 900px) {
+    .tutorial-layout { grid-template-columns: 1fr; }
+    .tutorial-nav { position: static; border-right: none; padding-right: 0; }
+    .tutorial-nav__links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; }
+    .tutorial-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .tutorial-nav__links { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-5xl mx-auto px-8 py-10 space-y-10">
-  <div class="text-center space-y-2">
-    <h1 class="font-heading text-4xl font-bold" style="color:var(--text-primary)">Guides &amp; Tutorials</h1>
-    <p class="text-lg" style="color:var(--text-secondary)">Learn how to get the most from the Raha analysis platform.</p>
-  </div>
-  <div class="space-y-5">
-    {% for num, title, body in [
-      ('1','Upload Your Scans','Go to the <strong>Analyze</strong> page. Drag and drop your micro-CT images (TIFF, BMP, PNG) into the upload zone. You can upload multiple files at once as a batch.'),
-      ('2','Name Your Batch','Give your upload a meaningful batch title. This helps you find and organize your results later.'),
-      ('3','Run AI Analysis','Click <strong>Start Analysis</strong>. The platform will upload your files and run the periodontal assessment model. A progress bar tracks each step.'),
-      ('4','Review Results','Once complete, go to <strong>Results</strong> to see BV/TV ratio, bone loss metrics, confidence levels, and severity classification for every scan.'),
-      ('5','Report Issues','If you encounter any problem with a scan result, use the Report Issue button on the Results page.'),
-    ] %}
-    <div class="card p-7 flex gap-6 items-start">
-      <div class="w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center font-heading font-bold text-xl text-white"
-           style="background:linear-gradient(135deg,var(--rp),var(--rs))">{{ num }}</div>
-      <div class="space-y-1">
-        <h3 class="font-heading text-lg font-bold" style="color:var(--text-primary)">{{ title }}</h3>
-        <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">{{ body|safe }}</p>
-      </div>
+<div class="max-w-7xl mx-auto px-8 py-10 space-y-10">
+  <header class="space-y-3">
+    <div class="flex items-center gap-2 text-sm font-semibold" style="color:var(--rp)">
+      <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+      Researcher Training Library
     </div>
-    {% endfor %}
-  </div>
-  <div class="space-y-3">
-    <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">FAQ</h2>
-    {% for q, a in [
-      ('What image formats are supported?','TIFF (including multi-page stacks), BMP, PNG, JPG, and IIF. Maximum 50 MB per file.'),
-      ('How accurate is the AI model?','The segmentation model achieves >90% accuracy on the validation set. Results should always be reviewed by a qualified clinician.'),
-      ('Is my data secure?','All uploads are stored securely and are only accessible to your account. Admins can view aggregate logs but not your scan images.'),
-      ('How do I contact support?','Use the Contact Us page to submit a support request. We respond within 24 hours.'),
-    ] %}
-    <details class="card p-5 cursor-pointer group">
-      <summary class="font-semibold flex items-center justify-between list-none" style="color:var(--text-primary)">
-        {{ q }}
-        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180" style="color:var(--text-muted)"></i>
-      </summary>
-      <p class="mt-3 text-sm leading-relaxed" style="color:var(--text-secondary)">{{ a }}</p>
-    </details>
-    {% endfor %}
+    <h1 class="font-heading text-4xl font-bold" style="color:var(--text-primary)">Guides &amp; Tutorials</h1>
+    <p class="text-lg max-w-3xl" style="color:var(--text-secondary)">
+      Follow short video walkthroughs and written steps for every major researcher workflow in Raha.
+    </p>
+  </header>
+
+  <div class="tutorial-layout">
+    <aside class="tutorial-nav">
+      <p class="text-xs font-bold uppercase mb-3" style="color:var(--text-muted);letter-spacing:.08em">Tutorials</p>
+      <div class="tutorial-nav__links">
+        {% for id, icon, title in [
+          ('profile','user-round-cog','Set Up Your Profile'),
+          ('volume-only','scan-search','Run Volume-Only Analysis'),
+          ('volume-label','layers-3','Use Volume + Label'),
+          ('review','scan-line','Review Scan Results'),
+          ('graphs','chart-no-axes-combined','Understand Graphs'),
+          ('compare','git-compare','Compare Treatments'),
+          ('export','download','Export CSV & PDF'),
+          ('manage','message-square-warning','Manage Results & Issues'),
+        ] %}
+        <a href="#{{ id }}"><i data-lucide="{{ icon }}"></i>{{ title }}</a>
+        {% endfor %}
+      </div>
+    </aside>
+
+    <main class="space-y-10">
+      {% set tutorials = [
+        {
+          'id':'profile',
+          'icon':'user-round-cog',
+          'title':'Set Up Your Researcher Profile',
+          'duration':'2–3 min',
+          'file':'01-researcher-profile.mov',
+          'screenshot':'01-profile-setup.png',
+          'purpose':'Show researchers how to keep their title, full name, institution, role, and profile photo accurate.',
+          'steps':['Open Profile from the navigation bar.','Review the separate Title and Full Name fields.','Review and update your account information as needed.','Save changes and confirm the updated researcher header.']
+        },
+        {
+          'id':'volume-only',
+          'icon':'scan-search',
+          'title':'Run a Complete Volume-Only Analysis',
+          'duration':'4–6 min',
+          'file':'02-volume-only-analysis.mp4',
+          'screenshot':'02-volume-only-analysis.png',
+          'purpose':'Demonstrate the full automated pipeline from a raw volume to the final periodontal assessment.',
+          'steps':['Open Start Analyze and select Volume Only.','Enter a clear analysis title and upload the NIfTI volume.','Start the analysis and explain the localizer, Improved nnU-Net, measurements, and classifier stages.','Wait for the result page to open.']
+        },
+        {
+          'id':'volume-label',
+          'icon':'layers-3',
+          'title':'Analyze a Volume with an Existing Label',
+          'duration':'3–4 min',
+          'file':'03-volume-and-label-analysis.mp4',
+          'screenshot':'03-volume-and-label-analysis.png',
+          'purpose':'Show how to use a prepared segmentation label when the researcher does not need automated segmentation.',
+          'steps':['Select Volume + Label.','Upload the matching volume and segmentation label.','Start the analysis and explain measurement extraction and classification.','Confirm the label overlay in the results viewer.']
+        },
+        {
+          'id':'review',
+          'icon':'scan-line',
+          'title':'Review the Scan Viewer and Measurements',
+          'duration':'5–7 min',
+          'file':'04-review-scan-results.mp4',
+          'screenshot':'04-review-scan-results.png',
+          'purpose':'Teach researchers how to inspect the scan, segmentation overlay, diagnosis, severity, and morphometric measurements.',
+          'steps':['Open an analysis from View Results.','Move through the multiplanar viewer and adjust the mask controls.','Review BV, TV, BV/TV, trabecular thickness, and trabecular separation.','Interpret the diagnosis and severity together with the original scan.']
+        },
+        {
+          'id':'graphs',
+          'icon':'chart-no-axes-combined',
+          'title':'Understand the Detailed Analysis Graphs',
+          'duration':'4–5 min',
+          'file':'05-understand-analysis-graphs.mp4',
+          'screenshot':'05-understand-analysis-graphs.png',
+          'purpose':'Explain what each gauge and the Z-axis bone profile communicates.',
+          'steps':['Open the Detailed Analysis tab.','Explain the BV/TV gauge and its reference bands.','Explain the trabecular thickness and separation gauges.','Review the Z-axis profile and relate it back to the scan.']
+        },
+        {
+          'id':'compare',
+          'icon':'git-compare',
+          'title':'Compare Baseline and Treatment Analyses',
+          'duration':'4–6 min',
+          'file':'06-compare-treatment-results.mp4',
+          'screenshot':'06-compare-treatment-results.png',
+          'purpose':'Show how to compare two analyses and interpret changes in measurements and scan appearance.',
+          'steps':['Open the Treatment Comparison tab.','Choose a treatment analysis to compare with the baseline.','Inspect both viewers and measurement changes.','Use the comparison as research evidence, not as a standalone clinical conclusion.']
+        },
+        {
+          'id':'export',
+          'icon':'download',
+          'title':'Export Research CSV and PDF Reports',
+          'duration':'3–4 min',
+          'file':'07-export-csv-and-pdf.mp4',
+          'screenshot':'07-export-csv-and-pdf.png',
+          'purpose':'Show researchers how to download numeric data for analysis and a clean visual report for review.',
+          'steps':['Open the target analysis.','Export the CSV and identify the numeric measurement columns.','Export the PDF and review the scan preview, measurements, and graphs.','Store exports using a consistent research naming convention.']
+        },
+        {
+          'id':'manage',
+          'icon':'message-square-warning',
+          'title':'Manage Results and Report an Issue',
+          'duration':'3–4 min',
+          'file':'08-manage-results-and-report-issues.mp4',
+          'screenshot':'08-manage-results-and-report-issues.png',
+          'purpose':'Explain how to organize analyses and send a useful issue report when a result needs review.',
+          'steps':['Open View Results and rename an analysis when needed.','Open an analysis that requires review.','Use Report Issue and select the most accurate issue type.','Describe the problem clearly so the support team can investigate it.']
+        },
+      ] %}
+
+      {% for tutorial in tutorials %}
+      <section id="{{ tutorial.id }}" class="tutorial-section space-y-4">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--rp10);color:var(--rp)">
+              <i data-lucide="{{ tutorial.icon }}" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">{{ tutorial.title }}</h2>
+              <p class="text-sm mt-1" style="color:var(--text-secondary)">{{ tutorial.purpose }}</p>
+            </div>
+          </div>
+          <span class="badge badge-researcher whitespace-nowrap">{{ tutorial.duration }}</span>
+        </div>
+
+        <div class="tutorial-grid">
+          <div class="space-y-2">
+            <div class="video-frame">
+              <video controls preload="metadata" data-tutorial-video{% if tutorial.screenshot %} poster="/static/tutorials/screenshots/{{ tutorial.screenshot }}"{% endif %}>
+                <source src="/static/tutorials/{{ tutorial.file }}">
+              </video>
+              <div class="video-placeholder{% if tutorial.screenshot %} has-screenshot{% endif %}" data-video-placeholder>
+                {% if tutorial.screenshot %}
+                <img class="video-placeholder__screenshot"
+                     src="/static/tutorials/screenshots/{{ tutorial.screenshot }}"
+                     alt="{{ tutorial.title }} screen preview">
+                <div class="video-placeholder__play" aria-hidden="true">
+                  <i data-lucide="play"></i>
+                </div>
+                {% else %}
+                <div class="video-placeholder__icon"><i data-lucide="play" class="w-5 h-5"></i></div>
+                <div>
+                  <p class="font-heading font-bold">Video recording placeholder</p>
+                  <p class="text-xs mt-1" style="color:#98b4b0">Add <code>/app/static/tutorials/{{ tutorial.file }}</code></p>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            <p class="text-xs" style="color:var(--text-muted)">Recording title: “{{ tutorial.title }}”</p>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <p class="text-xs font-bold uppercase mb-3" style="color:var(--text-muted);letter-spacing:.08em">Steps</p>
+              <div class="space-y-3">
+                {% for step in tutorial.steps %}
+                <div class="tutorial-step">
+                  <span class="tutorial-step__num">{{ loop.index }}</span>
+                  <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">{{ step }}</p>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="recording-note">
+              <p class="text-xs font-semibold" style="color:var(--rp)">Recording guidance</p>
+              <p class="text-xs mt-1 leading-relaxed" style="color:var(--text-secondary)">Use a real sample with no sensitive identifiers, keep the cursor visible, and narrate why each step matters.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endfor %}
+    </main>
   </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
 if (!Auth.user()) window.location.href = '/login';
+
+document.querySelectorAll('[data-tutorial-video]').forEach((video) => {
+  const frame = video.closest('.video-frame');
+  const placeholder = frame?.querySelector('[data-video-placeholder]');
+  if (!placeholder) return;
+
+  const showVideo = () => {
+    placeholder.style.display = 'none';
+    video.style.display = 'block';
+  };
+  const showPlaceholder = () => {
+    placeholder.style.display = 'flex';
+    video.style.display = 'none';
+  };
+
+  video.addEventListener('loadedmetadata', showVideo);
+  video.addEventListener('error', showPlaceholder);
+  if (video.readyState >= 1) showVideo();
+  else showPlaceholder();
+});
+
 lucide.createIcons();
 </script>
 {% endblock %}

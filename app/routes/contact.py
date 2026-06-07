@@ -6,7 +6,7 @@ Note: your schema splits name into first_name + last_name
 
 from fastapi import APIRouter
 from pydantic import BaseModel, EmailStr
-from app.db_helpers import save_contact_message
+from app.db_helpers import save_contact_message, save_issue
 
 router = APIRouter()
 
@@ -29,4 +29,7 @@ def submit_contact(body: ContactRequest):
         full_message = f"[{body.issue_type}] {body.message}"
 
     save_contact_message(first, last, body.email, full_message)
+    if body.issue_type:
+        title = f"[Contact: {body.issue_type}] {body.name.strip() or body.email}"
+        save_issue(None, None, title, f"{body.email}\n\n{body.message}")
     return {"message": "Submitted"}

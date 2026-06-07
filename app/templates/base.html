@@ -433,6 +433,12 @@ const Auth = {
   },
 };
 
+function formatTitle(title) {
+  if (!title) return '';
+  const clean = String(title).trim().replace(/\.$/, '');
+  return ['Dr', 'Ms', 'Mr', 'Mrs', 'Prof'].includes(clean) ? `${clean}.` : clean;
+}
+
 /* ── Theme ── */
 function applyTheme() {
   const u = Auth.user();

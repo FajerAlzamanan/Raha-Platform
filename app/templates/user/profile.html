@@ -102,6 +102,10 @@
           <span id="v-name" class="info-value">—</span>
         </div>
         <div class="info-row">
+          <span class="info-label">Title</span>
+          <span id="v-title" class="info-value">—</span>
+        </div>
+        <div class="info-row">
           <span class="info-label">Email Address</span>
           <span id="v-email" class="info-value">—</span>
         </div>
@@ -154,7 +158,7 @@
 
       <div class="space-y-1">
         <label class="text-sm font-medium" style="color:var(--text-secondary)">Institution</label>
-        <input id="e-institution" class="input" placeholder="e.g. King Abdulaziz University"/>
+        <input id="e-institution" class="input" placeholder="e.g. Imam Abdulrahman Bin Faisal University"/>
       </div>
 
       <div class="space-y-1">
@@ -265,6 +269,7 @@ function fmtDateFull(iso) {
 
 function renderView() {
   const p = profileData;
+  const displayName = p.title ? `${formatTitle(p.title)} ${p.full_name ?? ''}`.trim() : (p.full_name ?? '—');
 
   // Header card
   if (p.avatar_url) {
@@ -277,7 +282,7 @@ function renderView() {
   } else {
     document.getElementById('avatar').textContent = (p.full_name?.[0] ?? '?').toUpperCase();
   }
-  document.getElementById('d-name').textContent  = p.full_name ?? '—';
+  document.getElementById('d-name').textContent  = displayName;
   document.getElementById('d-email').textContent = p.email ?? '—';
   const roleBadge = document.getElementById('d-role-badge');
   roleBadge.textContent = p.role ?? '—';
@@ -290,6 +295,7 @@ function renderView() {
 
   // Info grid
   document.getElementById('v-name').textContent        = p.full_name || '—';
+  document.getElementById('v-title').textContent       = p.title ? formatTitle(p.title) : 'Not specified';
   document.getElementById('v-email').textContent       = p.email || '—';
   document.getElementById('v-profrole').textContent    = p.professional_role || 'Not specified';
   document.getElementById('v-institution').textContent = p.institution || 'Not specified';
@@ -308,11 +314,8 @@ function toggleEdit(show) {
   document.getElementById('avatar-overlay').style.display = show ? '' : 'none';
 
   if (show) {
-    const titles = ['Dr', 'Ms', 'Mr', 'Mrs', 'Prof'];
-    const parts = (profileData.full_name ?? '').split(' ');
-    const hasTitle = titles.includes(parts[0]);
-    document.getElementById('e-title').value       = hasTitle ? parts[0] : '';
-    document.getElementById('e-name').value        = hasTitle ? parts.slice(1).join(' ') : (profileData.full_name ?? '');
+    document.getElementById('e-title').value       = profileData.title ?? '';
+    document.getElementById('e-name').value        = profileData.full_name ?? '';
     document.getElementById('e-profrole').value    = profileData.professional_role ?? '';
     document.getElementById('e-institution').value = profileData.institution ?? '';
     document.getElementById('e-gender').value      = profileData.gender ?? '';
@@ -351,7 +354,7 @@ async function saveProfile(e) {
 
   const title = document.getElementById('e-title').value;
   const name  = document.getElementById('e-name').value.trim();
-  const full_name       = title ? `${title} ${name}` : name;
+  const full_name       = name;
   const professional_role = document.getElementById('e-profrole').value;
   const institution       = document.getElementById('e-institution').value.trim();
   const gender            = document.getElementById('e-gender').value;
@@ -360,10 +363,10 @@ async function saveProfile(e) {
   try {
     await api('/api/user/me', {
       method: 'PUT',
-      body: JSON.stringify({ full_name, professional_role, institution, gender, new_password }),
+      body: JSON.stringify({ full_name, title, professional_role, institution, gender, new_password }),
     });
-    profileData = { ...profileData, full_name, professional_role, institution, gender };
-    syncStoredUser({ full_name });
+    profileData = { ...profileData, full_name, title, professional_role, institution, gender };
+    syncStoredUser({ full_name, title });
     renderView();
     toggleEdit(false);
     toast('Profile updated successfully!');

@@ -56,6 +56,50 @@ body.dark .step-connector.done { background: var(--rp); }
 }
 .slot-label.req  { color: var(--rp); }
 .slot-label.opt  { color: var(--text-muted); }
+.mode-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .85rem;
+}
+.mode-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 1rem 1rem .95rem;
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, opacity .2s ease;
+}
+.mode-card:hover { border-color: var(--rp); }
+.mode-card.active {
+  border-color: var(--rp);
+  background: var(--rp10);
+  box-shadow: 0 0 0 3px var(--rp15);
+}
+.mode-card__title {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: .25rem;
+}
+.mode-card__desc {
+  font-size: .77rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.vol-zone.is-disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  border-style: solid;
+}
+@media (max-width: 640px) {
+  .mode-picker,
+  [data-upload-grid] {
+    grid-template-columns: 1fr !important;
+  }
+}
 </style>
 {% endblock %}
 
@@ -98,14 +142,34 @@ body.dark .step-connector.done { background: var(--rp); }
       <input id="vol-title" class="input" placeholder="e.g. Rat Case #42"/>
     </div>
 
+    <div class="space-y-2">
+      <label class="text-sm font-medium" style="color:var(--text-primary)">Upload Mode</label>
+      <div class="mode-picker">
+        <button type="button" id="mode-raw" class="mode-card active" onclick="setUploadMode('raw')">
+          <div class="mode-card__title">
+            <i data-lucide="scan-search" style="width:18px;height:18px;color:var(--rp)"></i>
+            Volume Only
+          </div>
+          <div class="mode-card__desc">Upload one volume and run the complete localizer, Improved nnU-Net, measurement, and classification pipeline.</div>
+        </button>
+        <button type="button" id="mode-manual" class="mode-card" onclick="setUploadMode('manual')">
+          <div class="mode-card__title">
+            <i data-lucide="layers-3" style="width:18px;height:18px;color:var(--rp)"></i>
+            Volume + Label
+          </div>
+          <div class="mode-card__desc">Upload both the volume and its label directly when you already have the segmentation output.</div>
+        </button>
+      </div>
+    </div>
+
     <!-- Dual drop zones -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div data-upload-grid style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
 
       <!-- ── Base Scan ── -->
       <div class="space-y-2">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span class="slot-label req">Base Scan <span style="color:#ef4444">*</span></span>
-          <span style="font-size:.7rem;color:var(--text-muted)">.nii / .nii.gz</span>
+          <span id="base-format-note" style="font-size:.7rem;color:var(--text-muted)">.nii / .nii.gz</span>
         </div>
         <div id="base-zone" class="vol-zone"
              ondragover="zoneDragOver(event,'base')"
@@ -115,7 +179,7 @@ body.dark .step-connector.done { background: var(--rp); }
           <div id="base-empty">
             <i data-lucide="upload-cloud" style="width:30px;height:30px;color:var(--rp);opacity:.75"></i>
             <p class="font-semibold text-sm" style="color:var(--text-primary);margin-top:.25rem">Drop or click to browse</p>
-            <p class="text-xs" style="color:var(--text-muted)">e.g. scan.nii.gz</p>
+            <p id="base-empty-hint" class="text-xs" style="color:var(--text-muted)">e.g. scan.nii.gz</p>
           </div>
           <div id="base-file-display" class="hidden" style="width:100%;padding:.25rem 0"></div>
         </div>
@@ -127,13 +191,13 @@ body.dark .step-connector.done { background: var(--rp); }
       <div class="space-y-2">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span class="slot-label opt">AI Mask</span>
-          <span style="font-size:.7rem;color:var(--text-muted)">optional</span>
+          <span id="mask-mode-note" style="font-size:.7rem;color:var(--text-muted)">not needed in volume-only mode</span>
         </div>
         <div id="mask-zone" class="vol-zone"
              ondragover="zoneDragOver(event,'mask')"
              ondragleave="zoneDragLeave('mask')"
              ondrop="zoneDrop(event,'mask')"
-             onclick="document.getElementById('mask-input').click()">
+             onclick="if(uploadMode==='manual')document.getElementById('mask-input').click()">
           <div id="mask-empty">
             <i data-lucide="layers" style="width:30px;height:30px;color:var(--text-muted);opacity:.6"></i>
             <p class="font-semibold text-sm" style="color:var(--text-primary);margin-top:.25rem">Drop or click to browse</p>
@@ -147,9 +211,9 @@ body.dark .step-connector.done { background: var(--rp); }
     </div>
 
     <!-- Info tip -->
-    <p class="text-xs" style="color:var(--text-muted);display:flex;align-items:center;gap:.4rem">
+    <p id="upload-mode-tip" class="text-xs" style="color:var(--text-muted);display:flex;align-items:center;gap:.4rem">
       <i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;color:var(--rp);opacity:.8"></i>
-      The AI mask is the segmentation output from your model (_seg.nii.gz). It will be overlaid on the base scan in the 3D viewer.
+      Volume-only mode runs the complete AI pipeline. Volume + label mode uses your existing segmentation label for measurement and classification.
     </p>
 
     <!-- Alert -->
@@ -174,6 +238,10 @@ body.dark .step-connector.done { background: var(--rp); }
       <span id="p-text" style="color:var(--text-secondary)">Starting…</span>
       <span id="p-pct" class="font-semibold" style="color:var(--rp)">0%</span>
     </div>
+    <div id="pipeline-stage" class="text-sm font-semibold" style="color:var(--text-primary)">Preparing analysis…</div>
+    <p id="pipeline-detail" class="text-xs" style="color:var(--text-muted);line-height:1.55;margin-top:-.35rem">
+      We are validating the upload and preparing the analysis pipeline.
+    </p>
     <div class="flex items-center justify-center py-4" id="spinner-area">
       <div class="spinner"></div>
     </div>
@@ -189,6 +257,8 @@ if (!Auth.user()) window.location.href = '/login';
 
 let baseScanFile = null;
 let maskFile     = null;
+let uploadMode   = 'raw';
+let progressTimer = null;
 
 /* ── Step indicator ── */
 function setStep(n) {
@@ -218,23 +288,105 @@ function fmtSize(bytes) {
     : (bytes / 1024).toFixed(1) + ' KB';
 }
 
+function setUploadMode(mode) {
+  uploadMode = mode === 'manual' ? 'manual' : 'raw';
+  document.getElementById('mode-raw').classList.toggle('active', uploadMode === 'raw');
+  document.getElementById('mode-manual').classList.toggle('active', uploadMode === 'manual');
+
+  const maskZone = document.getElementById('mask-zone');
+  const maskNote = document.getElementById('mask-mode-note');
+  const baseInput = document.getElementById('base-input');
+  const baseFormatNote = document.getElementById('base-format-note');
+  const baseEmptyHint = document.getElementById('base-empty-hint');
+  const tip = document.getElementById('upload-mode-tip');
+  const rawMode = uploadMode === 'raw';
+
+  baseInput.multiple = false;
+  baseInput.accept = '.nii,.nii.gz,.gz';
+  baseFormatNote.textContent = '.nii / .nii.gz';
+  baseEmptyHint.textContent = 'e.g. scan.nii.gz';
+  maskZone.classList.toggle('is-disabled', rawMode);
+  maskZone.setAttribute('aria-disabled', rawMode ? 'true' : 'false');
+  maskNote.textContent = rawMode ? 'not needed in volume-only mode' : 'required in volume + label mode';
+  tip.innerHTML = rawMode
+    ? `<i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;color:var(--rp);opacity:.8"></i>
+      Volume-only mode localizes the ROI, segments bone and tooth with the deployed Improved nnU-Net, computes morphometric measurements, and applies the final hybrid classifier.`
+    : `<i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;color:var(--rp);opacity:.8"></i>
+      Volume + label mode uses the uploaded segmentation directly, computes the morphometric measurements, and applies the final hybrid classifier.`;
+
+  if (rawMode && maskFile) clearSlot('mask');
+  lucide.createIcons();
+}
+
+function stopProgressSimulation() {
+  if (progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+  }
+}
+
+function startProgressSimulation() {
+  stopProgressSimulation();
+  const stages = uploadMode === 'raw'
+    ? [
+        { pct: 12, headline: 'Uploading the volume…', detail: 'The scan is being uploaded and queued for model processing.' },
+        { pct: 34, headline: 'Preparing the volume…', detail: 'The volume is being staged and validated before inference begins.' },
+        { pct: 58, headline: 'Running ROI localizer…', detail: 'The production localizer is finding the target region in the uploaded volume.' },
+        { pct: 70, headline: 'Running Improved nnU-Net…', detail: 'The deployed segmentation model is identifying alveolar bone and tooth within the localized ROI.' },
+        { pct: 84, headline: 'Computing measurements…', detail: 'The system is extracting BV/TV and trabecular morphometric measurements from the segmentation.' },
+        { pct: 94, headline: 'Classifying the result…', detail: 'The hybrid classifier and severity score are preparing the final periodontal assessment.' },
+      ]
+    : [
+        { pct: 18, headline: 'Uploading volume and label…', detail: 'The volume and its label are being validated before the result view is prepared.' },
+        { pct: 52, headline: 'Computing measurements…', detail: 'The system is extracting BV/TV and trabecular morphometric measurements from the uploaded segmentation.' },
+        { pct: 82, headline: 'Classifying the result…', detail: 'The hybrid classifier and severity score are preparing the final periodontal assessment.' },
+      ];
+
+  let idx = 0;
+  const applyStage = () => {
+    const stage = stages[Math.min(idx, stages.length - 1)];
+    setP(stage.pct, stage.headline);
+    document.getElementById('pipeline-stage').textContent = stage.headline;
+    document.getElementById('pipeline-detail').textContent = stage.detail;
+    idx += 1;
+  };
+  applyStage();
+  progressTimer = setInterval(() => {
+    if (idx < stages.length) applyStage();
+  }, 900);
+}
+
 /* ── Drag / drop ── */
 function zoneDragOver(e, slot)  { e.preventDefault(); document.getElementById(slot+'-zone').classList.add('drag-over'); }
 function zoneDragLeave(slot)    { document.getElementById(slot+'-zone').classList.remove('drag-over'); }
-function zoneDrop(e, slot)      { e.preventDefault(); zoneDragLeave(slot); onZoneSelect(e.dataTransfer.files, slot); }
+function zoneDrop(e, slot)      {
+  e.preventDefault();
+  zoneDragLeave(slot);
+  if (slot === 'mask' && uploadMode === 'raw') return;
+  onZoneSelect(e.dataTransfer.files, slot);
+}
 
 /* ── File selection ── */
 function onZoneSelect(fileList, slot) {
-  const f = fileList[0];
+  if (slot === 'mask' && uploadMode === 'raw') return;
+  const files = Array.from(fileList || []);
+  const f = files[0];
   if (!f) return;
-  const n = f.name.toLowerCase();
-  if (!n.endsWith('.nii.gz') && !n.endsWith('.nii') && !n.endsWith('.gz')) {
-    showAlert(`Please upload a .nii or .nii.gz file.`, 'error');
+  const isNifti = file => {
+    const n = file.name.toLowerCase();
+    return n.endsWith('.nii.gz') || n.endsWith('.nii') || n.endsWith('.gz');
+  };
+
+  if (!isNifti(f)) {
+    showAlert('Please upload a .nii or .nii.gz volume.', 'error');
     return;
   }
   clearAlert();
-  if (slot === 'base') baseScanFile = f;
-  else                 maskFile     = f;
+  if (slot === 'base') {
+    baseScanFile = f;
+  } else {
+    maskFile = f;
+  }
   renderSlot(slot, f);
 }
 
@@ -264,8 +416,11 @@ function renderSlot(slot, f) {
 }
 
 function clearSlot(slot) {
-  if (slot === 'base') baseScanFile = null;
-  else                 maskFile     = null;
+  if (slot === 'base') {
+    baseScanFile = null;
+  } else {
+    maskFile = null;
+  }
 
   const zone    = document.getElementById(slot + '-zone');
   const empty   = document.getElementById(slot + '-empty');
@@ -278,18 +433,24 @@ function clearSlot(slot) {
 }
 
 function clearAll() {
+  stopProgressSimulation();
   clearSlot('base');
   clearSlot('mask');
   clearAlert();
   document.getElementById('vol-title').value = '';
   document.getElementById('progress-card').classList.add('hidden');
   setStep(1);
+  setUploadMode('raw');
 }
 
 /* ── Submit ── */
 async function startAnalysis() {
   if (!baseScanFile) {
     showAlert('A base scan (.nii.gz) is required.', 'error');
+    return;
+  }
+  if (uploadMode === 'manual' && !maskFile) {
+    showAlert('Volume + label mode requires both files.', 'error');
     return;
   }
 
@@ -300,15 +461,18 @@ async function startAnalysis() {
   document.getElementById('progress-card').classList.remove('hidden');
   document.getElementById('spinner-area').innerHTML = '<div class="spinner"></div>';
   clearAlert();
-  setP(0, 'Preparing volume…');
+  setP(0, 'Preparing analysis…');
+  document.getElementById('pipeline-stage').textContent = 'Preparing analysis…';
+  document.getElementById('pipeline-detail').textContent = 'We are validating the upload and preparing the analysis pipeline.';
   btn.disabled = true;
 
   const form = new FormData();
   form.append('scans', baseScanFile);
   if (maskFile) form.append('scans', maskFile);
   if (title)    form.append('title', title);
+  form.append('mode', uploadMode);
 
-  setP(25, `Uploading ${maskFile ? '2 files' : '1 file'}…`);
+  startProgressSimulation();
 
   try {
     const res  = await fetch('/api/scans/upload-volume', {
@@ -319,9 +483,12 @@ async function startAnalysis() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Upload failed');
 
-    setP(80, 'Running morphometric analysis…');
+    stopProgressSimulation();
+    setP(96, 'Finalizing assessment…');
     await new Promise(r => setTimeout(r, 700));
     setP(100, 'Analysis complete!');
+    document.getElementById('pipeline-stage').textContent = 'Analysis complete!';
+    document.getElementById('pipeline-detail').textContent = 'The segmentation, morphometric measurements, and classification result are ready in the results interface.';
     setStep(3);
     document.getElementById('spinner-area').innerHTML =
       `<i data-lucide="check-circle" class="w-10 h-10" style="color:#22c55e"></i>`;
@@ -331,6 +498,7 @@ async function startAnalysis() {
     window.location.href = `/scan/${data.batchId}`;
 
   } catch (err) {
+    stopProgressSimulation();
     showAlert(err.message, 'error');
     setP(0, '');
     document.getElementById('spinner-area').innerHTML = '';
@@ -358,5 +526,6 @@ function clearAlert() {
 }
 
 lucide.createIcons();
+setUploadMode('raw');
 </script>
 {% endblock %}

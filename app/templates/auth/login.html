@@ -107,7 +107,7 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     const data = await api('/api/auth/login', {
       method: 'POST', body: JSON.stringify({ email, password })
     });
-    Auth.save(data.token, { email, role: data.role, full_name: data.full_name }, remember);
+    Auth.save(data.token, { email, role: data.role, full_name: data.full_name, title: data.title }, remember);
     document.getElementById('alert-success').textContent = 'Login successful! Redirecting…';
     document.getElementById('alert-success').classList.remove('hidden');
     setTimeout(() => window.location.href = '/', 1200);

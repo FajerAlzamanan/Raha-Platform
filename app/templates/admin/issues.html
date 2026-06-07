@@ -5,15 +5,25 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl font-bold" style="color:var(--text-primary)">Issue Review</h1>
-      <p style="color:var(--text-secondary)">Track and resolve reported system issues.</p>
+      <p style="color:var(--text-secondary)">Open each report, respond to the researcher, and update its review status.</p>
     </div>
     <a href="/admin/dashboard" class="btn-outline"><i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard</a>
   </div>
-  <div class="card overflow-hidden">
-    <table class="data-table">
-      <thead><tr><th>Title</th><th>Reported By</th><th>Description</th><th>Status</th><th>Date</th><th></th></tr></thead>
-      <tbody id="issues-body"><tr><td colspan="6" class="text-center py-8" style="color:var(--text-muted)">Loading…</td></tr></tbody>
-    </table>
+
+  <div class="flex gap-3 flex-wrap">
+    <div class="input-icon flex-1 min-w-0 max-w-md">
+      <i data-lucide="search" class="icon w-4 h-4"></i>
+      <input id="q" class="input" placeholder="Search issues, reporters, or emails…" oninput="renderIssues()"/>
+    </div>
+    <select id="status-filter" class="input max-w-[170px]" onchange="renderIssues()">
+      <option value="">All statuses</option>
+      <option value="open">Open</option>
+      <option value="closed">Closed</option>
+    </select>
+  </div>
+
+  <div id="issue-list" class="space-y-4">
+    <div class="card p-8 text-center" style="color:var(--text-muted)">Loading…</div>
   </div>
 </div>
 {% endblock %}
@@ -21,24 +31,135 @@
 <script>
 const u = Auth.user();
 if (!u || u.role !== 'admin') window.location.href = '/login';
+let allIssues = [];
+let selectedIssueId = null;
+
 async function load() {
   try {
-    const issues = await api('/api/admin/issues');
-    const body = document.getElementById('issues-body');
-    if (!issues.length) { body.innerHTML = '<tr><td colspan="6" class="text-center py-8" style="color:var(--text-muted)">No issues reported.</td></tr>'; return; }
-    body.innerHTML = issues.map(i => `<tr>
-      <td class="font-semibold" style="color:var(--text-primary)">${esc(i.title)}</td>
-      <td style="color:var(--text-secondary)">${esc(i.full_name??'—')}</td>
-      <td class="max-w-xs truncate text-xs" style="color:var(--text-secondary)">${esc(i.description??'—')}</td>
-      <td><span class="badge ${i.status==='open'?'badge-open':'badge-closed'}">${i.status}</span></td>
-      <td class="text-xs" style="color:var(--text-muted)">${fmtDate(i.created_at)}</td>
-      <td>${i.status==='open'?`<button onclick="close_issue(${i.id})" class="btn-outline" style="padding:.3rem .9rem;font-size:.78rem">Close</button>`:'—'}</td>
-    </tr>`).join('');
+    allIssues = await api('/api/admin/issues');
+    if (!selectedIssueId && allIssues.length) selectedIssueId = allIssues[0].id;
+    renderIssues();
   } catch(e) { toast(e.message,'err'); }
 }
+
+function filteredIssues() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const status = document.getElementById('status-filter').value;
+  return allIssues.filter(issue => {
+    const searchable = [
+      issue.title,
+      issue.description,
+      issue.full_name,
+      issue.email,
+      issue.scan_name,
+      issue.status
+    ].join(' ').toLowerCase();
+    return (!q || searchable.includes(q)) && (!status || issue.status === status);
+  });
+}
+
+function renderIssues() {
+  const list = document.getElementById('issue-list');
+  const issues = filteredIssues();
+  if (!issues.length) {
+    list.innerHTML = '<div class="card p-8 text-center" style="color:var(--text-muted)">No issues found.</div>';
+    return;
+  }
+  if (!issues.some(i => i.id === selectedIssueId)) selectedIssueId = issues[0].id;
+  list.innerHTML = issues.map(renderIssueCard).join('');
+  lucide.createIcons();
+}
+
+function renderIssueCard(issue) {
+  const open = issue.id === selectedIssueId;
+  const reporter = issue.full_name || 'Contact form submission';
+  const email = issue.email || '';
+  const description = issue.description || 'No description provided.';
+  const emailHref = buildEmailHref(issue);
+  return `
+    <article class="card overflow-hidden">
+      <button class="w-full text-left p-5 flex items-start gap-4" onclick="selectIssue(${issue.id})">
+        <span class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style="background:rgba(55,141,140,.10);color:var(--rt)">
+          <i data-lucide="${issue.status === 'open' ? 'alert-triangle' : 'check-circle'}" class="w-5 h-5"></i>
+        </span>
+        <span class="flex-1 min-w-0">
+          <span class="flex items-center gap-3 flex-wrap">
+            <span class="font-heading text-lg font-bold" style="color:var(--text-primary)">${esc(issue.title)}</span>
+            <span class="badge ${issue.status === 'open' ? 'badge-open' : 'badge-closed'}">${esc(issue.status)}</span>
+          </span>
+          <span class="mt-2 flex items-center gap-4 flex-wrap text-sm" style="color:var(--text-secondary)">
+            <span><strong>Reporter:</strong> ${esc(reporter)}</span>
+            ${email ? `<span><strong>Email:</strong> ${esc(email)}</span>` : ''}
+            <span><strong>Date:</strong> ${fmtDate(issue.created_at)}</span>
+            ${issue.scan_id ? `<span><strong>Scan:</strong> ${esc(issue.scan_name || `Scan #${issue.scan_id}`)}</span>` : ''}
+          </span>
+        </span>
+        <span class="mt-1" style="color:var(--text-muted)"><i data-lucide="${open ? 'chevron-up' : 'chevron-down'}" class="w-5 h-5"></i></span>
+      </button>
+      ${open ? `
+        <div class="px-5 pb-5">
+          <div class="rounded-xl border p-5 space-y-5" style="border-color:var(--border);background:var(--bg-soft)">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color:var(--text-muted)">Report description</p>
+              <p class="leading-relaxed whitespace-pre-wrap" style="color:var(--text-primary)">${esc(description)}</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-3">
+              <div class="rounded-lg p-3" style="background:var(--card-bg);border:1px solid var(--border)">
+                <p class="text-xs font-bold uppercase" style="color:var(--text-muted)">Issue ID</p>
+                <p class="font-semibold" style="color:var(--text-primary)">#${issue.id}</p>
+              </div>
+              <div class="rounded-lg p-3" style="background:var(--card-bg);border:1px solid var(--border)">
+                <p class="text-xs font-bold uppercase" style="color:var(--text-muted)">Linked scan</p>
+                <p class="font-semibold" style="color:var(--text-primary)">${issue.scan_id ? esc(issue.scan_name || `Scan #${issue.scan_id}`) : 'Not linked'}</p>
+              </div>
+              <div class="rounded-lg p-3" style="background:var(--card-bg);border:1px solid var(--border)">
+                <p class="text-xs font-bold uppercase" style="color:var(--text-muted)">Response email</p>
+                <p class="font-semibold break-all" style="color:var(--text-primary)">${email ? esc(email) : 'No email available'}</p>
+              </div>
+            </div>
+            <div class="flex gap-3 flex-wrap">
+              ${email ? `<a class="btn-primary" href="${emailHref}"><i data-lucide="mail" class="w-4 h-4"></i> Respond by Email</a>` : ''}
+              ${issue.scan_id ? `<a class="btn-outline" href="/scan/${issue.scan_id}"><i data-lucide="external-link" class="w-4 h-4"></i> Open Scan</a>` : ''}
+              ${issue.status === 'open'
+                ? `<button onclick="setIssueStatus(${issue.id}, 'close')" class="btn-outline" style="color:#dc2626;border-color:#dc2626"><i data-lucide="check" class="w-4 h-4"></i> Close Issue</button>`
+                : `<button onclick="setIssueStatus(${issue.id}, 'reopen')" class="btn-outline"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reopen Issue</button>`}
+            </div>
+          </div>
+        </div>` : ''}
+    </article>`;
+}
+
+function selectIssue(id) {
+  selectedIssueId = selectedIssueId === id ? null : id;
+  renderIssues();
+}
+
+function buildEmailHref(issue) {
+  const subject = `Raha issue #${issue.id}: ${issue.title || 'Issue report'}`;
+  const body = [
+    `Dear ${issue.full_name || 'Researcher'},`,
+    '',
+    'Thank you for reporting this issue. We reviewed your report and wanted to follow up.',
+    '',
+    `Issue: ${issue.title || ''}`,
+    issue.scan_id ? `Scan: ${issue.scan_name || `Scan #${issue.scan_id}`}` : '',
+    '',
+    'Best regards,',
+    'Raha Support Team'
+  ].filter(line => line !== '').join('\\n');
+  return `mailto:${issue.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+async function setIssueStatus(id, action) {
+  try {
+    const res = await api(`/api/admin/issues/${id}/${action}`, { method:'PUT' });
+    toast(action === 'close' ? 'Issue closed' : 'Issue reopened');
+    await load();
+  } catch(e) { toast(e.message,'err'); }
+}
+
 async function close_issue(id) {
-  try { await api(`/api/admin/issues/${id}/close`,{method:'PUT'}); toast('Issue closed'); load(); }
-  catch(e) { toast(e.message,'err'); }
+  return setIssueStatus(id, 'close');
 }
 load(); lucide.createIcons();
 </script>

@@ -1,2 +1,11 @@
 venv/
 uploads/
+.DS_Store
+__pycache__/
+*.py[cod]
+app/static/uploads/
+*.pt
+*.pth
+*.nii
+*.nii.gz
+*.zip

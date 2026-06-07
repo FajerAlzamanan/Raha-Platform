@@ -28,7 +28,7 @@
       <i data-lucide="activity" class="w-5 h-5 group-hover:scale-110 transition-transform" style="color:var(--rt)"></i>
     </div>
     <a href="/admin/issues" class="card p-6 flex items-center justify-between group hover:shadow-lg transition-all">
-      <div><p class="text-sm font-medium mb-1" style="color:var(--text-secondary)">Pending Issues</p><p class="font-heading text-2xl font-bold" id="s-issues" style="color:var(--rt)">—</p><p class="text-xs mt-1" style="color:var(--text-muted)">Unresolved issue reports</p></div>
+      <div><p class="text-sm font-medium mb-1" style="color:var(--text-secondary)">Open Issues</p><p class="font-heading text-2xl font-bold" id="s-issues" style="color:var(--rt)">—</p><p class="text-xs mt-1" style="color:var(--text-muted)">Unresolved issue reports</p></div>
       <i data-lucide="alert-triangle" class="w-5 h-5 group-hover:scale-110 transition-transform" style="color:var(--rt)"></i>
     </a>
   </div>
@@ -50,10 +50,10 @@ document.getElementById('today').textContent = new Date().toLocaleDateString();
 
 async function load() {
   try {
-    const [users, logs, issues] = await Promise.all([api('/api/admin/users'),api('/api/admin/logs'),api('/api/admin/issues')]);
-    document.getElementById('s-users').textContent  = users.length;
-    document.getElementById('s-issues').textContent = issues.filter(i=>i.status==='open').length;
-    document.getElementById('s-scans').textContent  = logs.filter(l=>l.event_type==='upload').length;
+    const [stats, logs] = await Promise.all([api('/api/admin/stats'),api('/api/admin/logs')]);
+    document.getElementById('s-users').textContent  = stats.total_users;
+    document.getElementById('s-issues').textContent = stats.open_issues;
+    document.getElementById('s-scans').textContent  = stats.total_analyses;
     const icons = {login:'shield',upload:'upload-cloud',analysis:'activity',issue_reported:'alert-triangle'};
     const colors= {login:'#3b82f6',upload:'#10b981',analysis:'#10b981',issue_reported:'#ef4444'};
     const body = document.getElementById('activity-body');

@@ -12,7 +12,7 @@
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-1">
           <label class="text-sm font-medium" style="color:var(--text-primary)">Name *</label>
-          <input id="f-name" class="input" placeholder="Dr. Jane Smith" required/>
+          <input id="f-name" class="input" placeholder="Jane Smith" required/>
         </div>
         <div class="space-y-1">
           <label class="text-sm font-medium" style="color:var(--text-primary)">Email *</label>
@@ -42,7 +42,7 @@
 <script>
 const u = Auth.user();
 if (u) {
-  document.getElementById('f-name').value  = u.full_name ?? '';
+  document.getElementById('f-name').value  = u.title ? `${formatTitle(u.title)} ${u.full_name ?? ''}`.trim() : (u.full_name ?? '');
   document.getElementById('f-email').value = u.email ?? '';
 }
 document.getElementById('contact-form').addEventListener('submit', async e => {

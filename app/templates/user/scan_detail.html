@@ -13,7 +13,9 @@
 </script>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<!-- html2pdf -->
+<!-- PDF export helpers -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   /* ── Tab bar ── */
@@ -581,11 +583,11 @@
   <div id="tab-detailed" class="hidden">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
 
-      <!-- Panel A: Severity Gauge -->
+      <!-- Panel A: BV/TV Gauge -->
       <div class="card p-6 space-y-4">
         <div>
-          <h2 class="font-heading text-lg font-bold" style="color:var(--text-primary)">Severity Gauge</h2>
-          <p class="text-sm" style="color:var(--text-secondary)">BV/TV ratio plotted against clinical severity thresholds.</p>
+          <h2 class="font-heading text-lg font-bold" style="color:var(--text-primary)">BV/TV Gauge</h2>
+          <p class="text-sm" style="color:var(--text-secondary)">This chart reflects BV/TV only. Final diagnosis and severity are based on multiple measurements together.</p>
         </div>
         <div style="position:relative;height:260px;display:flex;align-items:center;justify-content:center">
           <canvas id="severity-gauge-chart"></canvas>
@@ -599,6 +601,7 @@
           <span style="font-size:.75rem;color:#a16207;font-weight:600">● Moderate (0.25–0.40)</span>
           <span style="font-size:.75rem;color:#378d8c;font-weight:600">● Healthy (&gt;0.40)</span>
         </div>
+        <p class="text-xs" style="color:var(--text-muted)">A high BV/TV value can still appear alongside a mild overall diagnosis when the other measurements indicate early periodontal change.</p>
       </div>
 
       <!-- Panel B: Z-Axis Bone Profile -->
@@ -613,6 +616,41 @@
         </div>
       </div>
 
+    </div>
+
+    <div class="card p-6 space-y-4" style="margin-top:1.25rem">
+      <div>
+        <h2 class="font-heading text-lg font-bold" style="color:var(--text-primary)">Measurement Gauges</h2>
+        <p class="text-sm" style="color:var(--text-secondary)">Each gauge shows where one measurement sits relative to the configured reference ranges.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem">
+        <div id="metric-card-tbth" style="border:1px solid var(--border-subtle);border-radius:16px;padding:1rem;background:var(--bg-surface)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.35rem">
+            <div style="font-size:.75rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)">Trabecular Thickness</div>
+            <span id="metric-gauge-tbth-band" style="font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:.22rem .55rem;border-radius:999px;background:var(--rp15);color:var(--rp)">—</span>
+          </div>
+          <div style="position:relative;height:180px">
+            <canvas id="metric-gauge-tbth"></canvas>
+            <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;pointer-events:none">
+              <p id="metric-gauge-tbth-value" class="font-heading font-bold" style="font-size:1.35rem;color:var(--rp);margin:0;line-height:1">—</p>
+            </div>
+          </div>
+          <p id="metric-gauge-tbth-note" class="text-xs" style="color:var(--text-muted);margin:0">—</p>
+        </div>
+        <div id="metric-card-tbsp" style="border:1px solid var(--border-subtle);border-radius:16px;padding:1rem;background:var(--bg-surface)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.35rem">
+            <div style="font-size:.75rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)">Trabecular Separation</div>
+            <span id="metric-gauge-tbsp-band" style="font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:.22rem .55rem;border-radius:999px;background:var(--rp15);color:var(--rp)">—</span>
+          </div>
+          <div style="position:relative;height:180px">
+            <canvas id="metric-gauge-tbsp"></canvas>
+            <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;pointer-events:none">
+              <p id="metric-gauge-tbsp-value" class="font-heading font-bold" style="font-size:1.35rem;color:var(--rp);margin:0;line-height:1">—</p>
+            </div>
+          </div>
+          <p id="metric-gauge-tbsp-note" class="text-xs" style="color:var(--text-muted);margin:0">—</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1052,6 +1090,8 @@ async function loadScanData() {
     renderMetrics(data);
     await initNiivue();
     initSeverityGauge(data);
+    renderMetricGauge('metric-gauge-tbth', 'metric-gauge-tbth-value', 'metric-gauge-tbth-note', 'tbth', Number(data?.tb_th), 'metric-gauge-tbth-band', 'metric-card-tbth');
+    renderMetricGauge('metric-gauge-tbsp', 'metric-gauge-tbsp-value', 'metric-gauge-tbsp-note', 'tbsp', Number(data?.tb_sp), 'metric-gauge-tbsp-band', 'metric-card-tbsp');
     initZAxisPreview();
     setTimeout(showGestureCoach, 500);
   } catch (err) {
@@ -1140,7 +1180,7 @@ async function initNiivue() {
 
   await new Promise(r => setTimeout(r, 50));
 
-  _nv = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1] });
+  _nv = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1], preserveDrawingBuffer: true });
   await _nv.attachToCanvas(document.getElementById('gl'));
   _nv.setSliceType(_nv.sliceTypeMultiplanar);
 
@@ -1276,6 +1316,117 @@ function initSeverityGauge(data) {
   gaugeValueEl.style.color = gaugeColor;
 }
 
+function metricGaugeMeta(metricKey, rawValue) {
+  const configs = {
+    bvtv: { unit: '', direction: 'below', mean: 0.6304, sd: 0.0512 },
+    tbth: { unit: ' mm', direction: 'below', mean: 0.1522, sd: 0.0162 },
+    tbsp: { unit: ' mm', direction: 'above', mean: 0.6929, sd: 0.1223 },
+  };
+  const cfg = configs[metricKey];
+  if (!cfg || Number.isNaN(rawValue)) return null;
+
+  const mild = cfg.direction === 'below' ? cfg.mean - cfg.sd : cfg.mean + cfg.sd;
+  const moderate = cfg.direction === 'below' ? cfg.mean - (2 * cfg.sd) : cfg.mean + (2 * cfg.sd);
+  const severe = cfg.direction === 'below' ? cfg.mean - (3 * cfg.sd) : cfg.mean + (3 * cfg.sd);
+
+  let band = 'Normal';
+  let color = '#378d8c';
+  if (cfg.direction === 'below') {
+    if (rawValue < severe) {
+      band = 'Severe';
+      color = '#dc2626';
+    } else if (rawValue < moderate) {
+      band = 'Moderate';
+      color = '#a16207';
+    } else if (rawValue < mild) {
+      band = 'Mild';
+      color = '#65a30d';
+    }
+  } else {
+    if (rawValue > severe) {
+      band = 'Severe';
+      color = '#dc2626';
+    } else if (rawValue > moderate) {
+      band = 'Moderate';
+      color = '#a16207';
+    } else if (rawValue > mild) {
+      band = 'Mild';
+      color = '#65a30d';
+    }
+  }
+
+  const thresholdText = cfg.direction === 'below'
+    ? `Healthy ≥ ${mild.toFixed(4)} · Mild < ${mild.toFixed(4)} · Moderate < ${moderate.toFixed(4)} · Severe < ${severe.toFixed(4)}`
+    : `Healthy ≤ ${mild.toFixed(4)} · Mild > ${mild.toFixed(4)} · Moderate > ${moderate.toFixed(4)} · Severe > ${severe.toFixed(4)}`;
+
+  return { ...cfg, band, color, thresholdText };
+}
+
+function renderMetricGauge(canvasId, valueId, noteId, metricKey, rawValue, bandId = null, cardId = null) {
+  const meta = metricGaugeMeta(metricKey, rawValue);
+  const canvas = document.getElementById(canvasId);
+  const valueEl = document.getElementById(valueId);
+  const noteEl = document.getElementById(noteId);
+  const bandEl = bandId ? document.getElementById(bandId) : null;
+  const cardEl = cardId ? document.getElementById(cardId) : null;
+  if (!canvas || !valueEl || !noteEl) return;
+
+  if (!meta) {
+    valueEl.textContent = '—';
+    noteEl.textContent = 'No value available.';
+    if (bandEl) bandEl.textContent = '—';
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [0.25, 0.25, 0.25, 0.25],
+        backgroundColor: [
+          'rgba(239,68,68,.82)',
+          'rgba(234,179,8,.82)',
+          'rgba(132,204,22,.82)',
+          'rgba(55,141,140,.82)',
+        ],
+        borderWidth: 0,
+        hoverOffset: 3,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      circumference: 180,
+      rotation: -90,
+      cutout: '72%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => ['Severe', 'Moderate', 'Mild', 'Normal'][item.dataIndex],
+            title: () => '',
+          },
+        },
+      },
+    },
+  });
+
+  valueEl.textContent = `${rawValue.toFixed(4)}${meta.unit}`;
+  valueEl.style.color = meta.color;
+  noteEl.textContent = `${meta.band} range. ${meta.thresholdText}`;
+  noteEl.style.color = meta.color;
+  if (bandEl) {
+    bandEl.textContent = meta.band;
+    bandEl.style.background = `${meta.color}1a`;
+    bandEl.style.color = meta.color;
+  }
+  if (cardEl) {
+    cardEl.style.borderColor = `${meta.color}55`;
+    cardEl.style.boxShadow = `inset 0 0 0 1px ${meta.color}18`;
+  }
+}
+
 /* ──────────────────────────────────────────────
    Chart.js – Z-Axis Bone Profile (line, dummy data)
 ────────────────────────────────────────────── */
@@ -1356,36 +1507,95 @@ function switchTab(name, btn) {
 /* ──────────────────────────────────────────────
    Export CSV
 ────────────────────────────────────────────── */
+function reportFileStem(d) {
+  const title = String(d?.title || `scan-${SCAN_ID}`)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return `raha-report-${title || SCAN_ID}`;
+}
+
+function csvCell(value) {
+  const raw = String(value ?? '');
+  if (!raw) return '';
+  if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(raw)) return raw;
+  return `"${raw.replace(/"/g, '""')}"`;
+}
+
+function numericCell(value, digits = null) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '';
+  return digits == null ? String(n) : n.toFixed(digits);
+}
+
+function severityCode(diagnosis, severity) {
+  if (diagnosis === 'Healthy') return 0;
+  const map = { pending: '', mild: 1, moderate: 2, severe: 3 };
+  return map[String(severity || 'pending').toLowerCase()] ?? '';
+}
+
 function exportCSV() {
   if (!_scanData) { toast('No scan data loaded yet.', 'err'); return; }
   const d = _scanData;
   const severityLabel = d.diagnosis === 'Healthy'
     ? 'Normal'
     : (d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Pending');
-  const rows = [
-    ['Field', 'Value'],
-    ['Scan ID', SCAN_ID],
-    ['Analysis Title', d.title ?? ''],
-    ['Created At', d.created_at ?? ''],
-    ['Generated At', new Date().toISOString()],
-    ['BV mm³', d.bv_mm3 ?? ''],
-    ['TV mm³', d.tv_mm3 ?? ''],
-    ['BV/TV', d.bv_tv ?? ''],
-    ['BV/TV %', d.bv_tv != null ? (Number(d.bv_tv) * 100).toFixed(2) : ''],
-    ['Trabecular Thickness (mm)', d.tb_th ?? ''],
-    ['Trabecular Separation (mm)', d.tb_sp ?? ''],
-    ['Diagnosis', d.diagnosis ?? ''],
-    ['Severity', severityLabel],
-    ['Base Scan URL', d.base_scan_url ?? ''],
-    ['AI Mask URL', d.ai_mask_url ?? ''],
-    ['Report Note', 'AI-assisted results: These measurements are generated automatically and are intended to support — not replace — your clinical review. Please verify all findings against the original scan and segmentation mask before drawing any conclusions.'],
+
+  const generatedAt = new Date().toISOString();
+  const headers = [
+    'scan_id',
+    'analysis_title',
+    'created_at',
+    'exported_at',
+    'diagnosis_label',
+    'severity_label',
+    'severity_code',
+    'bone_volume_mm3',
+    'total_volume_mm3',
+    'bv_tv_ratio',
+    'bv_tv_percent',
+    'trabecular_thickness_mm',
+    'trabecular_separation_mm',
+    'bvtv_reference_mean',
+    'bvtv_reference_sd',
+    'tbth_reference_mean_mm',
+    'tbth_reference_sd_mm',
+    'tbsp_reference_mean_mm',
+    'tbsp_reference_sd_mm',
+    'base_scan_url',
+    'ai_mask_url',
   ];
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const values = [
+    SCAN_ID,
+    d.title ?? '',
+    d.created_at ?? '',
+    generatedAt,
+    d.diagnosis ?? '',
+    severityLabel,
+    severityCode(d.diagnosis, d.severity),
+    numericCell(d.bv_mm3, 6),
+    numericCell(d.tv_mm3, 6),
+    numericCell(d.bv_tv, 8),
+    Number.isFinite(Number(d.bv_tv)) ? (Number(d.bv_tv) * 100).toFixed(6) : '',
+    numericCell(d.tb_th, 8),
+    numericCell(d.tb_sp, 8),
+    '0.6304',
+    '0.0512',
+    '0.1522',
+    '0.0162',
+    '0.6929',
+    '0.1223',
+    d.base_scan_url ?? '',
+    d.ai_mask_url ?? '',
+  ];
+  const csv = [headers, values].map(r => r.map(csvCell).join(',')).join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `raha_scan_${SCAN_ID}.csv`;
+  a.download = `${reportFileStem(d)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -1402,6 +1612,12 @@ async function exportPDF() {
   await new Promise(r => setTimeout(r, 300));
 
   const d = _scanData;
+  const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
+  if (!JsPDF) {
+    toast('PDF export failed: PDF library is not available.', 'err');
+    return;
+  }
+
   const severityLabel = d.diagnosis === 'Healthy'
     ? 'Normal'
     : (d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Pending');
@@ -1416,129 +1632,352 @@ async function exportPDF() {
           : '#1a9e8f';
   const createdAt = d.created_at ? fmtDate(d.created_at) : '—';
   const generatedAt = new Date().toLocaleString();
-  const scanImage = document.getElementById('gl')?.toDataURL?.('image/png') || '';
-  const gaugeImage = document.getElementById('severity-gauge-chart')?.toDataURL?.('image/png') || '';
-  const zaxisImage = document.getElementById('zaxis-chart')?.toDataURL?.('image/png') || '';
-
-  const metricRows = [
-    ['Bone Volume', d.bv_mm3 != null ? `${Number(d.bv_mm3).toFixed(2)} mm³` : '—'],
-    ['Total Volume', d.tv_mm3 != null ? `${Number(d.tv_mm3).toFixed(2)} mm³` : '—'],
-    ['BV/TV Ratio', d.bv_tv != null ? `${(Number(d.bv_tv) * 100).toFixed(2)}%` : '—'],
-    ['Trabecular Thickness', d.tb_th != null ? `${Number(d.tb_th).toFixed(4)} mm` : '—'],
-    ['Trabecular Separation', d.tb_sp != null ? `${Number(d.tb_sp).toFixed(4)} mm` : '—'],
-  ];
-
-  const report = document.createElement('div');
-  report.style.cssText = `
-    width: 1120px;
-    padding: 40px;
-    background: #ffffff;
-    color: #0f172a;
-    font-family: Inter, Arial, sans-serif;
-    line-height: 1.5;
-    position: fixed;
-    left: -10000px;
-    top: 0;
-    z-index: -1;
-  `;
-  report.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px;">
-      <div>
-        <div style="font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#1a9e8f;margin-bottom:8px;">Raha Analysis Report</div>
-        <h1 style="margin:0;font-size:30px;line-height:1.15;font-family:Outfit, Inter, sans-serif;">${esc(d.title ?? `Scan #${SCAN_ID}`)}</h1>
-        <p style="margin:10px 0 0;font-size:14px;color:#475569;">Comprehensive export of the current result view, measurements, and visual summaries.</p>
-      </div>
-      <div style="min-width:250px;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;background:#f8fafc;">
-        <div style="font-size:12px;color:#64748b;">Scan ID</div>
-        <div style="font-size:18px;font-weight:700;margin-bottom:10px;">${SCAN_ID}</div>
-        <div style="font-size:12px;color:#64748b;">Created</div>
-        <div style="font-size:14px;font-weight:600;margin-bottom:8px;">${createdAt}</div>
-        <div style="font-size:12px;color:#64748b;">Generated</div>
-        <div style="font-size:14px;font-weight:600;">${generatedAt}</div>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1.25fr .95fr;gap:22px;align-items:start;margin-bottom:22px;">
-      <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
-        <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Multiplanar View</div>
-        <div style="height:360px;border-radius:14px;background:#0a1a18;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-          ${scanImage ? `<img src="${scanImage}" alt="Scan view" style="width:100%;height:100%;object-fit:cover;display:block;">` : `<div style="color:#e2e8f0;font-size:14px;">Viewer snapshot unavailable</div>`}
-        </div>
-      </div>
-      <div style="display:grid;gap:16px;">
-        <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-            <div>
-              <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Clinical Summary</div>
-              <div style="font-size:24px;font-weight:800;color:#0f172a;">${esc(d.diagnosis ?? 'Unknown')}</div>
-            </div>
-            <div style="padding:8px 12px;border-radius:999px;background:${severityColor}1a;color:${severityColor};font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">${esc(severityLabel)}</div>
-          </div>
-          <p style="margin:14px 0 0;font-size:14px;color:#475569;">${esc(document.getElementById('severity-desc')?.textContent || '')}</p>
-        </div>
-        <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
-          <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Measurements</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            ${metricRows.map(([label, value]) => `
-              <div style="border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;background:#f8fafc;">
-                <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">${label}</div>
-                <div style="font-size:18px;font-weight:800;color:#1a9e8f;">${value}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px;">
-      <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
-        <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Severity Gauge</div>
-        <div style="height:280px;display:flex;align-items:center;justify-content:center;">
-          ${gaugeImage ? `<img src="${gaugeImage}" alt="Severity gauge" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">` : `<div style="color:#64748b;font-size:14px;">Gauge preview unavailable</div>`}
-        </div>
-      </div>
-      <div style="border:1px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff;">
-        <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Z-Axis Bone Profile</div>
-        <div style="height:280px;display:flex;align-items:center;justify-content:center;">
-          ${zaxisImage ? `<img src="${zaxisImage}" alt="Z-axis profile" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">` : `<div style="color:#64748b;font-size:14px;">Profile preview unavailable</div>`}
-        </div>
-      </div>
-    </div>
-
-    <div style="border:1px solid rgba(234,179,8,.24);border-radius:16px;padding:16px 18px;background:rgba(234,179,8,.08);">
-      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#92400e;margin-bottom:8px;">Important Note</div>
-      <div style="font-size:14px;color:#475569;">
-        <strong style="color:#0f172a;">AI-assisted results:</strong> These measurements are generated automatically and are intended to support — not replace — your clinical review. Please verify all findings against the original scan and segmentation mask before drawing any conclusions.
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(report);
-  const opt = {
-    margin:      [10, 10, 10, 10],
-    filename:    `raha_scan_${SCAN_ID}.pdf`,
-    image:       { type: 'jpeg', quality: 0.95 },
-    html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
-    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'landscape' },
+  const safeCanvasDataURL = (id) => {
+    try {
+      return document.getElementById(id)?.toDataURL?.('image/png') || '';
+    } catch (e) {
+      return '';
+    }
   };
+  const isBlankImage = async (dataUrl) => {
+    if (!dataUrl) return true;
+    try {
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.min(img.width, 180);
+      canvas.height = Math.min(img.height, 180);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let visible = 0;
+      for (let i = 0; i < pixels.length; i += 64) {
+        if (pixels[i + 3] > 0 && (pixels[i] + pixels[i + 1] + pixels[i + 2]) > 60) visible += 1;
+      }
+      return visible < 12;
+    } catch (e) {
+      return true;
+    }
+  };
+  if (_nv) {
+    try {
+      _nv.drawScene?.();
+      _nv.updateGLVolume?.();
+      await new Promise(requestAnimationFrame);
+    } catch (e) {}
+  }
+  let scanImage = safeCanvasDataURL('gl');
+  if (await isBlankImage(scanImage) && window.html2canvas) {
+    try {
+      const stage = document.querySelector('.viewer-stage');
+      if (stage) {
+        scanImage = (await html2canvas(stage, { backgroundColor: '#0a1a18', scale: 2, logging: false })).toDataURL('image/png');
+      }
+    } catch (e) {}
+  }
+  const bvtvMeta = Number.isFinite(Number(d.bv_tv)) ? metricGaugeMeta('bvtv', Number(d.bv_tv)) : null;
+  const tbthMeta = Number.isFinite(Number(d.tb_th)) ? metricGaugeMeta('tbth', Number(d.tb_th)) : null;
+  const tbspMeta = Number.isFinite(Number(d.tb_sp)) ? metricGaugeMeta('tbsp', Number(d.tb_sp)) : null;
+  const interpretation = document.getElementById('severity-desc')?.textContent?.trim()
+    || 'AI-assisted impression generated from the uploaded scan and segmentation mask.';
 
   try {
-    const worker = html2pdf().set(opt).from(report);
-    const pdfUrl = await worker.outputPdf('bloburl');
-    const preview = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-    if (!preview) {
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `raha_scan_${SCAN_ID}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+    const pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 12;
+    const teal = [55, 141, 140];
+    const tealDark = [31, 111, 109];
+    const slate = [15, 23, 42];
+    const muted = [100, 116, 139];
+    const border = [219, 231, 240];
+
+    const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+    const setText = (size = 10, color = slate, style = 'normal') => {
+      pdf.setFont('helvetica', style);
+      pdf.setFontSize(size);
+      pdf.setTextColor(...color);
+    };
+    const wrap = (text, x, y, maxWidth, lineHeight = 4, size = 9, color = muted, style = 'normal') => {
+      setText(size, color, style);
+      const lines = pdf.splitTextToSize(clean(text), maxWidth);
+      pdf.text(lines, x, y);
+      return y + (lines.length * lineHeight);
+    };
+    const labelValue = (label, value, x, y, w) => {
+      setText(6.8, muted, 'bold');
+      pdf.text(label.toUpperCase(), x, y);
+      setText(10, slate, 'bold');
+      pdf.text(clean(value), x, y + 5, { maxWidth: w });
+    };
+    const sectionTitle = (title, x, y, w = pageWidth - (margin * 2)) => {
+      setText(7.5, muted, 'bold');
+      pdf.text(title.toUpperCase(), x, y);
+      pdf.setDrawColor(...border);
+      pdf.line(x, y + 2, x + w, y + 2);
+    };
+    const addImageFit = (dataUrl, x, y, w, h, bg = [10, 26, 24]) => {
+      pdf.setFillColor(...bg);
+      pdf.roundedRect(x, y, w, h, 3, 3, 'F');
+      if (!dataUrl) {
+        setText(9, [226, 232, 240], 'normal');
+        pdf.text('Preview unavailable', x + w / 2, y + h / 2, { align: 'center' });
+        return;
+      }
+      try {
+        const props = pdf.getImageProperties(dataUrl);
+        const ratio = Math.min(w / props.width, h / props.height);
+        const iw = props.width * ratio;
+        const ih = props.height * ratio;
+        pdf.addImage(dataUrl, 'PNG', x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+      } catch (e) {
+        setText(9, [226, 232, 240], 'normal');
+        pdf.text('Preview unavailable', x + w / 2, y + h / 2, { align: 'center' });
+      }
+    };
+    const drawBvtvGauge = (x, y, w, h, value) => {
+      pdf.setFillColor(255, 255, 255);
+      pdf.setDrawColor(...border);
+      pdf.roundedRect(x, y, w, h, 3, 3, 'FD');
+      const cx = x + w / 2;
+      const cy = y + h * 0.64;
+      const r = Math.min(w * 0.34, h * 0.48);
+      const segs = [
+        { a0: 180, a1: 135, color: [220, 38, 38] },
+        { a0: 135, a1: 88, color: [161, 98, 7] },
+        { a0: 88, a1: 0, color: teal },
+      ];
+      pdf.setLineWidth(4.5);
+      segs.forEach((seg) => {
+        pdf.setDrawColor(...seg.color);
+        for (let a = seg.a0; a >= seg.a1; a -= 2) {
+          const a2 = Math.max(seg.a1, a - 2);
+          const p1 = [(cx + r * Math.cos(a * Math.PI / 180)), (cy - r * Math.sin(a * Math.PI / 180))];
+          const p2 = [(cx + r * Math.cos(a2 * Math.PI / 180)), (cy - r * Math.sin(a2 * Math.PI / 180))];
+          pdf.line(p1[0], p1[1], p2[0], p2[1]);
+        }
+      });
+      const clamped = Math.max(0, Math.min(1, Number(value) || 0));
+      const angle = 180 - (clamped * 180);
+      pdf.setDrawColor(...slate);
+      pdf.setLineWidth(1.2);
+      pdf.line(cx, cy, cx + (r - 4) * Math.cos(angle * Math.PI / 180), cy - (r - 4) * Math.sin(angle * Math.PI / 180));
+      pdf.setFillColor(...slate);
+      pdf.circle(cx, cy, 1.5, 'F');
+      pdf.setFillColor(255, 255, 255);
+      pdf.roundedRect(cx - 14, y + h - 11.2, 28, 7.2, 1.2, 1.2, 'F');
+      setText(11, slate, 'bold');
+      pdf.text(`${(clamped * 100).toFixed(2)}%`, cx, y + h - 6.2, { align: 'center' });
+      setText(6.8, muted, 'normal');
+      pdf.text('Severe', x + 5, y + h - 7);
+      pdf.text('Healthy', x + w - 5, y + h - 7, { align: 'right' });
+    };
+    const drawMetricGauge = (x, y, w, h, title, value, meta) => {
+      pdf.setFillColor(255, 255, 255);
+      pdf.setDrawColor(...border);
+      pdf.roundedRect(x, y, w, h, 3, 3, 'FD');
+      setText(7.2, muted, 'bold');
+      pdf.text(title, x + 5, y + 7);
+      const cx = x + w / 2;
+      const cy = y + h * 0.57;
+      const r = Math.min(w * 0.27, h * 0.34);
+      const colors = [[220, 38, 38], [161, 98, 7], [101, 163, 13], teal];
+      pdf.setLineWidth(3.8);
+      colors.forEach((color, idx) => {
+        const start = 180 - (idx * 45);
+        const end = start - 45;
+        pdf.setDrawColor(...color);
+        for (let a = start; a >= end; a -= 2) {
+          const a2 = Math.max(end, a - 2);
+          pdf.line(
+            cx + r * Math.cos(a * Math.PI / 180),
+            cy - r * Math.sin(a * Math.PI / 180),
+            cx + r * Math.cos(a2 * Math.PI / 180),
+            cy - r * Math.sin(a2 * Math.PI / 180)
+          );
+        }
+      });
+      const numericValue = Number(value);
+      const normalized = Number.isFinite(numericValue) && meta
+        ? Math.max(0, Math.min(1, meta.direction === 'above'
+          ? 1 - ((numericValue - meta.mean + (3 * meta.sd)) / (6 * meta.sd))
+          : (numericValue - meta.mean + (3 * meta.sd)) / (6 * meta.sd)))
+        : 0.5;
+      const angle = 180 - (normalized * 180);
+      pdf.setDrawColor(...slate);
+      pdf.setLineWidth(1.1);
+      pdf.line(cx, cy, cx + (r - 3) * Math.cos(angle * Math.PI / 180), cy - (r - 3) * Math.sin(angle * Math.PI / 180));
+      pdf.setFillColor(...slate);
+      pdf.circle(cx, cy, 1.3, 'F');
+      pdf.setFillColor(255, 255, 255);
+      pdf.roundedRect(cx - 15, y + h - 10, 30, 6.7, 1.2, 1.2, 'F');
+      setText(8.2, slate, 'bold');
+      const valueLabel = Number.isFinite(numericValue) ? `${numericValue.toFixed(4)}${meta?.unit || ''}` : '-';
+      pdf.text(valueLabel, cx, y + h - 5.2, { align: 'center' });
+      const bandColor = meta?.band === 'Severe' ? [220, 38, 38]
+        : meta?.band === 'Moderate' ? [161, 98, 7]
+          : meta?.band === 'Mild' ? [101, 163, 13]
+            : teal;
+      setText(6.4, bandColor, 'normal');
+      pdf.text(meta?.band || '', cx, y + h - 1.8, { align: 'center' });
+    };
+    const drawZProfile = (x, y, w, h) => {
+      pdf.setFillColor(255, 255, 255);
+      pdf.setDrawColor(...border);
+      pdf.roundedRect(x, y, w, h, 3, 3, 'FD');
+      const gx = x + 8;
+      const gy = y + 8;
+      const gw = w - 16;
+      const gh = h - 18;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.2);
+      for (let i = 0; i <= 4; i += 1) pdf.line(gx, gy + (gh * i / 4), gx + gw, gy + (gh * i / 4));
+      const points = Array.from({ length: 80 }, (_, i) => {
+        const t = i / 79;
+        const dip = Math.exp(-Math.pow((t - 0.5) / 0.15, 2));
+        const val = 0.48 - 0.33 * dip + 0.008 * Math.sin(i * 0.8);
+        return [gx + (gw * t), gy + gh - ((val - 0.1) / 0.45) * gh];
+      });
+      pdf.setDrawColor(...teal);
+      pdf.setLineWidth(0.9);
+      for (let i = 1; i < points.length; i += 1) pdf.line(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1]);
+      setText(6.8, muted, 'normal');
+      pdf.text('Slice', gx + gw / 2, y + h - 4, { align: 'center' });
+      pdf.text('BV/TV', gx, gy - 2);
+    };
+    const logoData = await (async () => {
+      try {
+        const res = await fetch('/uploads/Raha_Website_Logo_DarkMode.svg');
+        const svg = await res.text();
+        const img = new Image();
+        const blobUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+        const dataUrl = await new Promise((resolve, reject) => {
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 520;
+            canvas.height = 293;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(blobUrl);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = reject;
+          img.src = blobUrl;
+        });
+        return dataUrl;
+      } catch (e) {
+        return '';
+      }
+    })();
+
+    pdf.setFillColor(247, 251, 250);
+    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+    pdf.setFillColor(...teal);
+    pdf.rect(0, 0, pageWidth, 32, 'F');
+    pdf.setFillColor(...tealDark);
+    pdf.rect(0, 30.5, pageWidth, 1.5, 'F');
+
+    if (logoData) {
+      const logoH = 13;
+      const logoW = logoH * (1440 / 810);
+      pdf.addImage(logoData, 'PNG', margin, 7, logoW, logoH);
+    } else {
+      setText(14, [255, 255, 255], 'bold');
+      pdf.text('Raha', margin, 15);
     }
-    setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+
+    setText(16, [255, 255, 255], 'bold');
+    pdf.text('Bone Morphometry Report', 44, 13);
+    setText(8.5, [218, 247, 242], 'normal');
+    pdf.text(clean(d.title ?? `Scan #${SCAN_ID}`), 44, 21);
+    setText(8, [218, 247, 242], 'normal');
+    pdf.text(`Generated ${generatedAt}`, pageWidth - margin, 13, { align: 'right' });
+    pdf.text(`Scan ID ${SCAN_ID}`, pageWidth - margin, 21, { align: 'right' });
+
+    const previewX = margin;
+    const previewY = 46;
+    const previewW = 88;
+    const previewH = 88;
+    sectionTitle('Scan Preview', previewX, 41, previewW);
+    addImageFit(scanImage, previewX, previewY, previewW, previewH);
+
+    const rightX = 106;
+    const rightW = pageWidth - rightX - margin;
+    sectionTitle('Case Summary', rightX, 41, rightW);
+    pdf.setFillColor(255, 255, 255);
+    pdf.setDrawColor(...border);
+    pdf.roundedRect(rightX, 46, rightW, 43, 3, 3, 'FD');
+    labelValue('Diagnosis', d.diagnosis ?? 'Unknown', rightX + 5, 56, 31);
+    labelValue('Severity', severityLabel, rightX + 40, 56, 25);
+    labelValue('Created', createdAt, rightX + 66, 56, 26);
+    wrap(interpretation, rightX + 5, 73, rightW - 10, 3.6, 8, muted);
+
+    sectionTitle('Measurements', margin, 145);
+    const tableX = margin;
+    const tableY = 150;
+    const tableW = pageWidth - (margin * 2);
+    const col = [72, 38, 26, 35];
+    pdf.setFillColor(248, 251, 252);
+    pdf.roundedRect(tableX, tableY, tableW, 54, 3, 3, 'F');
+    setText(7, muted, 'bold');
+    pdf.text('Metric', tableX + 4, tableY + 7);
+    pdf.text('Value', tableX + col[0] + 4, tableY + 7);
+    pdf.text('Unit', tableX + col[0] + col[1] + 4, tableY + 7);
+    pdf.text('Band', tableX + col[0] + col[1] + col[2] + 4, tableY + 7);
+    pdf.setDrawColor(...border);
+    pdf.line(tableX + 3, tableY + 10, tableX + tableW - 3, tableY + 10);
+
+    const measurementRows = [
+      ['Bone Volume', numericCell(d.bv_mm3, 2), 'mm3', 'Measured'],
+      ['Total Volume', numericCell(d.tv_mm3, 2), 'mm3', 'Measured'],
+      ['BV/TV', Number.isFinite(Number(d.bv_tv)) ? (Number(d.bv_tv) * 100).toFixed(2) : '', '%', bvtvMeta?.band ?? ''],
+      ['Trabecular Thickness', numericCell(d.tb_th, 4), 'mm', tbthMeta?.band ?? ''],
+      ['Trabecular Separation', numericCell(d.tb_sp, 4), 'mm', tbspMeta?.band ?? ''],
+    ];
+    measurementRows.forEach((row, idx) => {
+      const y = tableY + 17 + (idx * 8);
+      setText(7.8, slate, idx === 2 ? 'bold' : 'normal');
+      pdf.text(row[0], tableX + 4, y);
+      pdf.text(row[1] || '-', tableX + col[0] + 4, y);
+      pdf.text(row[2], tableX + col[0] + col[1] + 4, y);
+      pdf.text(row[3] || '-', tableX + col[0] + col[1] + col[2] + 4, y);
+    });
+
+    pdf.setFillColor(255, 251, 235);
+    pdf.setDrawColor(253, 230, 138);
+    pdf.roundedRect(margin, 211, pageWidth - (margin * 2), 8, 1.5, 1.5, 'FD');
+    setText(6.8, [146, 64, 14], 'bold');
+    pdf.text('Clinical advisory', margin + 4, 216);
+    setText(6.6, [71, 85, 105], 'normal');
+    pdf.text('AI-assisted results support review only. Verify against original scan and segmentation before conclusions.', margin + 35, 216);
+
+    sectionTitle('Graphs', margin, 229);
+    drawBvtvGauge(margin, 233, 88, 27, Number(d.bv_tv));
+    drawMetricGauge(margin + 98, 233, 88, 27, 'Trabecular thickness', Number(d.tb_th), tbthMeta);
+    drawMetricGauge(margin, 264, 88, 23, 'Trabecular separation', Number(d.tb_sp), tbspMeta);
+    drawZProfile(margin + 98, 264, 88, 23);
+    setText(6.8, muted, 'normal');
+    pdf.text('BV/TV gauge', margin, 263);
+    pdf.text('Trabecular thickness gauge', margin + 98, 263);
+    pdf.text('Trabecular separation gauge', margin, 291);
+    pdf.text('Z-axis bone profile', margin + 98, 291);
+
+    pdf.setDrawColor(...border);
+    pdf.line(margin, pageHeight - 4.5, pageWidth - margin, pageHeight - 4.5);
+    setText(7.5, [146, 64, 14], 'bold');
+    setText(7, muted, 'normal');
+    pdf.text('Raha Platform - Research export - A4 portrait', margin, pageHeight - 1.7);
+    pdf.text('CSV export contains numeric columns for downstream analysis.', pageWidth - margin, pageHeight - 1.7, { align: 'right' });
+
+    pdf.save(`${reportFileStem(d)}.pdf`);
+    toast('PDF report downloaded.');
   } catch (e) {
     toast('PDF export failed: ' + e.message, 'err');
-  } finally {
-    report.remove();
   }
 }
 
@@ -1681,8 +2120,8 @@ async function initCompareViewers(baseline, treatment) {
   // Let the browser reflow the now-visible canvases before WebGL measures them
   await new Promise(r => setTimeout(r, 80));
 
-  _nvBaseline = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1] });
-  _nvCompare  = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1] });
+  _nvBaseline = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1], preserveDrawingBuffer: true });
+  _nvCompare  = new Niivue({ show3Dcrosshair: true, backColor: [0.15, 0.15, 0.15, 1], preserveDrawingBuffer: true });
 
   await _nvBaseline.attachToCanvas(document.getElementById('gl-baseline'));
   await _nvCompare.attachToCanvas(document.getElementById('gl-compare'));

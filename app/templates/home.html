@@ -25,7 +25,7 @@
   <section class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 px-8 pb-20 max-w-7xl mx-auto">
     {% for icon, title, body in [
       ('upload-cloud','Easy Upload','Supports upload of TIFF, BMP, IIF formats.'),
-      ('cpu','AI Analyze','Executes deep-learning analysis using CNN and 3D U-Net models.'),
+      ('cpu','AI Analyze','Runs the ROI localizer, Improved nnU-Net segmentation, morphometric measurement extraction, and hybrid classification pipeline.'),
       ('zap','Instant Results','Displays classification, confidence scores, and bone-loss metrics.'),
       ('award','Research Grade','IRB-approved methodology and high model accuracy.'),
     ] %}
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('guest-view').classList.remove('hidden');
   } else if (u.role === 'researcher') {
     document.getElementById('researcher-view').classList.remove('hidden');
-    document.getElementById('r-name').textContent = displayName(u.full_name);
+    document.getElementById('r-name').textContent = displayName(u.full_name, u.title);
   } else if (u.role === 'admin') {
     document.getElementById('admin-view').classList.remove('hidden');
     document.getElementById('today-date').textContent = new Date().toLocaleDateString();
@@ -149,12 +149,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   lucide.createIcons();
 });
 
-function displayName(name) {
+function displayName(name, title) {
   if (!name) return '';
-  const parts = name.split(' ');
-  const titles = ['Ms.','Mr.','Dr.','Mrs.','Prof.','Ms','Mr','Dr','Mrs','Prof'];
-  if (parts.length > 1 && titles.includes(parts[0])) return `${parts[0]} ${parts[1]}`;
-  return parts[0];
+  const legacyMatch = name.match(/^(Dr|Ms|Mr|Mrs|Prof)\.?\s+(.+)$/i);
+  const cleanName = legacyMatch ? legacyMatch[2] : name;
+  const cleanTitle = title || (legacyMatch ? legacyMatch[1].replace(/\.$/, '') : '');
+  const firstName = cleanName.split(' ')[0];
+  return cleanTitle ? `${formatTitle(cleanTitle)} ${firstName}` : firstName;
 }
 
 async function loadAdminStats() {

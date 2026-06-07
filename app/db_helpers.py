@@ -328,9 +328,10 @@ def save_issue(user_id, scan_id, title, description):
         with _conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    'INSERT INTO issues (user_id,scan_id,title,description) VALUES (%s,%s,%s,%s)',
+                    'INSERT INTO issues (user_id,scan_id,title,description) VALUES (%s,%s,%s,%s) RETURNING id',
                     (user_id, scan_id, title, description)
                 )
+                return cur.fetchone()[0]
     except Exception as e:
         print(f"save_issue error: {e}")
         return None
@@ -339,8 +340,26 @@ def get_issues():
     try:
         with _conn() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute('SELECT issues.*, users.full_name FROM issues JOIN users ON issues.user_id=users.id')
-                return [dict(r) for r in cur.fetchall()]
+                cur.execute(
+                    '''SELECT issues.*,
+                              users.full_name,
+                              users.email,
+                              scans.original_name AS scan_name
+                       FROM issues
+                       LEFT JOIN users ON issues.user_id=users.id
+                       LEFT JOIN scans ON issues.scan_id=scans.id
+                       ORDER BY issues.created_at DESC'''
+                )
+                issues = []
+                for row in cur.fetchall():
+                    item = dict(row)
+                    if not item.get("email") and item.get("description"):
+                        first_line = str(item["description"]).splitlines()[0].strip()
+                        if "@" in first_line:
+                            item["email"] = first_line
+                            item["description"] = "\n".join(str(item["description"]).splitlines()[2:]).strip()
+                    issues.append(item)
+                return issues
     except Exception as e:
         print(f"get_issues error: {e}")
         return None

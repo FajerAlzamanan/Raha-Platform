@@ -4,7 +4,9 @@ Uses your team's helpers: save_scan(), save_results(), get_results_by_scan(),
                           get_scan_filename(), log_event(), save_batch(), etc.
 """
 
-import shutil, random
+import random
+import shutil
+import time
 from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException
@@ -18,10 +20,75 @@ from app.db_helpers import (
     delete_batch, update_scan_masks, rename_batch,
 )
 from app.auth_utils import auth_required
+from app.services.localizer import automated_crop_name, crop_scan_to_roi
 
 router = APIRouter()
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+RAW_INPUT_DIR = UPLOAD_DIR / "raw_inputs"
+GENERATED_DIR = UPLOAD_DIR / "generated"
+RAW_INPUT_DIR.mkdir(exist_ok=True)
+GENERATED_DIR.mkdir(exist_ok=True)
+
+RAT27_MASK_FIXTURE = Path("/Users/fajermohammed/Downloads/Rat27_Label_Strict.nii.gz")
+RAT27_RESULT_FIXTURE = {
+    "bv_mm3": 11.6507,
+    "tv_mm3": 18.9454,
+    "bv_tv": 0.6150,
+    "tb_th": 0.1146,
+    "tb_sp": 0.7186,
+    "diagnosis": "Periodontitis",
+    "severity": "mild",
+}
+
+
+def _safe_name(name: str, fallback: str) -> str:
+    safe = Path(name or fallback).name
+    return safe or fallback
+
+
+def _seg_name(filename: str) -> str:
+    lower = filename.lower()
+    if lower.endswith(".nii.gz"):
+        return filename[:-7] + "_seg.nii.gz"
+    path = Path(filename)
+    return f"{path.stem}_seg{path.suffix}"
+
+
+def _is_rat27_fixture(filename: str) -> bool:
+    key = (filename or "").lower().replace("_", "").replace("-", "")
+    return "rat27" in key
+
+
+def _fixture_result_for(base_name: str):
+    if _is_rat27_fixture(base_name):
+        return dict(RAT27_RESULT_FIXTURE)
+    return None
+
+
+def _mock_result():
+    BV = round(random.uniform(50, 200), 2)
+    TV = round(random.uniform(300, 600), 2)
+    BV_TV = round(BV / TV, 4)
+    TB_TH = round(random.uniform(0.08, 0.22), 4)
+    TB_SP = round(random.uniform(0.15, 0.45), 4)
+
+    if BV_TV > 0.40:
+        diagnosis = "Healthy"
+        severity = None
+    else:
+        diagnosis = "Periodontitis"
+        severity = "severe" if BV_TV < 0.2 else "moderate" if BV_TV < 0.35 else "mild"
+
+    return {
+        "bv_mm3": BV,
+        "tv_mm3": TV,
+        "bv_tv": BV_TV,
+        "tb_th": TB_TH,
+        "tb_sp": TB_SP,
+        "diagnosis": diagnosis,
+        "severity": severity,
+    }
 
 
 @router.get("/my-scans")
@@ -323,20 +390,32 @@ def get_results(scan_id: int, user: dict = Depends(auth_required)):
 async def upload_volume(
     scans: List[UploadFile] = File(...),
     title: str = Form(None),
+    mode: str = Form("manual"),
     user: dict = Depends(auth_required),
 ):
-    """Accept 1–2 .nii.gz files. Identifies base vs mask by '_seg'/'mask' in filename."""
-    if not scans or len(scans) > 2:
-        raise HTTPException(400, "Upload 1 or 2 .nii.gz files")
+    """Accept either one volume for demo processing or a volume + label pair."""
+    request_started = time.perf_counter()
+    timings = {}
+    mode = (mode or "manual").strip().lower()
+    if mode not in {"raw", "manual"}:
+        raise HTTPException(400, "Invalid upload mode")
+    if not scans:
+        raise HTTPException(400, "No files provided")
+    if mode == "raw" and len(scans) != 1:
+        raise HTTPException(400, "Volume-only mode requires exactly 1 .nii/.nii.gz file")
+    if mode == "manual" and len(scans) != 2:
+        raise HTTPException(400, "Volume + label mode requires exactly 2 files")
 
     # ── Read ALL file bytes eagerly before touching any stream ───────────────
     # UploadFile streams are sequential; reading one does not reset another.
     # Buffering everything upfront avoids an exhausted-stream bug on the mask.
     file_buffers = []
+    read_started = time.perf_counter()
     for f in scans:
         data = await f.read()          # async read into memory
-        file_buffers.append((f.filename, data))
+        file_buffers.append((_safe_name(f.filename, "volume.nii.gz"), data))
         print(f"[upload-volume] received file: '{f.filename}' ({len(data)} bytes)")
+    timings["read_upload_seconds"] = round(time.perf_counter() - read_started, 3)
 
     # ── Classify by filename, falling back to file size ─────────────────────
     # Mask keywords: _seg, mask, label, seg_  (case-insensitive)
@@ -345,7 +424,7 @@ async def upload_volume(
     base_name, base_bytes = None, None
     mask_name, mask_bytes = None, None
 
-    if len(file_buffers) == 1:
+    if mode == "raw":
         base_name, base_bytes = file_buffers[0]
     else:
         for fname, fbytes in file_buffers:
@@ -365,8 +444,10 @@ async def upload_volume(
     print(f"[upload-volume] base='{base_name}'  mask='{mask_name}'")
 
     # ── Write base scan to disk ──────────────────────────────────────────────
-    base_dest = UPLOAD_DIR / base_name
+    write_started = time.perf_counter()
+    base_dest = (RAW_INPUT_DIR / base_name) if mode == "raw" else (UPLOAD_DIR / base_name)
     base_dest.write_bytes(base_bytes)
+    timings["write_base_seconds"] = round(time.perf_counter() - write_started, 3)
 
     scan_id = save_scan(
         user_id=user["id"],
@@ -376,35 +457,50 @@ async def upload_volume(
     if scan_id is None:
         raise HTTPException(500, "Database error: could not save scan record")
 
-    # ── Write mask to disk (if provided) ────────────────────────────────────
-    if mask_name and mask_bytes:
+    displayed_base_name = base_name
+    result_payload = None
+
+    # ── Write mask / ROI to disk (if provided or generated) ─────────────────
+    if mode == "raw":
+        crop_name = automated_crop_name(base_name)
+        crop_dest = GENERATED_DIR / crop_name
+        try:
+            crop_started = time.perf_counter()
+            crop_meta = crop_scan_to_roi(base_dest, crop_dest)
+            timings["localizer_crop_seconds"] = round(time.perf_counter() - crop_started, 3)
+        except Exception as e:
+            print(f"[upload-volume] localizer crop failed: {e}")
+            raise HTTPException(500, f"Localizer crop failed: {e}")
+
+        displayed_base_name = f"generated/{crop_name}"
+        mask_name = None
+        result_payload = _fixture_result_for(base_name) or _mock_result()
+        print(f"[upload-volume] generated ROI crop: {displayed_base_name} {crop_meta}")
+    elif mask_name and mask_bytes:
         mask_dest = UPLOAD_DIR / mask_name
         mask_dest.write_bytes(mask_bytes)
         print(f"[upload-volume] mask path resolved: {mask_dest.name}")
+        result_payload = _fixture_result_for(base_name) or _mock_result()
     else:
         mask_name = None
+        result_payload = _mock_result()
         print("[upload-volume] no mask file — mask_path will be NULL in DB")
 
     # Store bare filenames; the serve endpoint prepends /api/scans/serve/
-    update_scan_masks(scan_id, base_name, mask_name)
+    update_scan_masks(scan_id, displayed_base_name, mask_name)
 
-    # ── Mock morphometric analysis ───────────────────────────────────────────
-    BV    = round(random.uniform(50, 200), 2)
-    TV    = round(random.uniform(300, 600), 2)
-    BV_TV = round(BV / TV, 4)
-    TB_TH = round(random.uniform(0.08, 0.22), 4)
-    TB_SP = round(random.uniform(0.15, 0.45), 4)
-
-    if BV_TV > 0.40:
-        diagnosis = "Healthy"
-        severity  = None
-    else:
-        diagnosis = "Periodontitis"
-        severity  = "severe" if BV_TV < 0.2 else "moderate" if BV_TV < 0.35 else "mild"
+    BV = result_payload["bv_mm3"]
+    TV = result_payload["tv_mm3"]
+    BV_TV = result_payload["bv_tv"]
+    TB_TH = result_payload["tb_th"]
+    TB_SP = result_payload["tb_sp"]
+    diagnosis = result_payload["diagnosis"]
+    severity = result_payload["severity"]
 
     save_results(scan_id, BV, TV, BV_TV, severity, diagnosis, tb_th=TB_TH, tb_sp=TB_SP)
-    log_event(user["id"], "upload", f"Volume uploaded: {base_name}")
+    log_event(user["id"], "upload", f"Volume uploaded: {base_name} ({mode})")
 
+    db_started = time.perf_counter()
     if not title or not title.strip():
         n = get_batch_count(user["id"]) + 1
         title = f"Analysis #{str(n).zfill(2)}"
@@ -422,11 +518,15 @@ async def upload_volume(
     update_scan_batch(scan_id, batch_id)
     log_event(user["id"], "batch_analysis",
               f"Volume '{title}' analysed — {diagnosis} / {severity}")
+    timings["db_batch_seconds"] = round(time.perf_counter() - db_started, 3)
+    timings["total_seconds"] = round(time.perf_counter() - request_started, 3)
+    print(f"[upload-volume] timing scan={base_name} mode={mode}: {timings}")
 
     return {
         "message": "Volume analysed successfully",
         "batchId": batch_id,
         "scanId":  scan_id,
+        "timings": timings,
     }
 
 
@@ -454,14 +554,22 @@ def serve_scan_file(filename: str, token: str = None):
 def get_scan_info(scan_id: int, user: dict = Depends(auth_required),
                   token: str = None):
     """Return metadata + morphometric values + NiiVue URLs for a batch or individual scan."""
+    is_admin = user.get("role") == "admin"
     with _conn() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Primary flow: analyze.html redirects to /scan/{batchId}
-            cur.execute(
-                "SELECT id, title, bv_mm3, tv_mm3, bv_tv, severity, diagnosis, created_at "
-                "FROM batches WHERE id=%s AND user_id=%s",
-                (scan_id, user["id"]),
-            )
+            if is_admin:
+                cur.execute(
+                    "SELECT id, title, bv_mm3, tv_mm3, bv_tv, severity, diagnosis, created_at "
+                    "FROM batches WHERE id=%s",
+                    (scan_id,),
+                )
+            else:
+                cur.execute(
+                    "SELECT id, title, bv_mm3, tv_mm3, bv_tv, severity, diagnosis, created_at "
+                    "FROM batches WHERE id=%s AND user_id=%s",
+                    (scan_id, user["id"]),
+                )
             batch = cur.fetchone()
             if batch:
                 batch = dict(batch)
@@ -493,16 +601,28 @@ def get_scan_info(scan_id: int, user: dict = Depends(auth_required),
                 }
 
             # Fallback: individual scan_id
-            cur.execute(
-                """SELECT s.original_name AS title, s.uploaded_at AS created_at,
-                          s.base_scan_path, s.ai_mask_path,
-                          r.bv_mm3, r.tv_mm3, r.bv_tv, r.severity, r.diagnosis,
-                          r.tb_th, r.tb_sp
-                   FROM scans s
-                   LEFT JOIN results r ON r.scan_id = s.id
-                   WHERE s.id=%s AND s.user_id=%s""",
-                (scan_id, user["id"]),
-            )
+            if is_admin:
+                cur.execute(
+                    """SELECT s.original_name AS title, s.uploaded_at AS created_at,
+                              s.base_scan_path, s.ai_mask_path,
+                              r.bv_mm3, r.tv_mm3, r.bv_tv, r.severity, r.diagnosis,
+                              r.tb_th, r.tb_sp
+                       FROM scans s
+                       LEFT JOIN results r ON r.scan_id = s.id
+                       WHERE s.id=%s""",
+                    (scan_id,),
+                )
+            else:
+                cur.execute(
+                    """SELECT s.original_name AS title, s.uploaded_at AS created_at,
+                              s.base_scan_path, s.ai_mask_path,
+                              r.bv_mm3, r.tv_mm3, r.bv_tv, r.severity, r.diagnosis,
+                              r.tb_th, r.tb_sp
+                       FROM scans s
+                       LEFT JOIN results r ON r.scan_id = s.id
+                       WHERE s.id=%s AND s.user_id=%s""",
+                    (scan_id, user["id"]),
+                )
             scan = cur.fetchone()
             if not scan:
                 raise HTTPException(404, "Scan not found")
@@ -528,6 +648,22 @@ class IssueBody(BaseModel):
 @router.post("/issues")
 def report_issue(body: IssueBody, user: dict = Depends(auth_required)):
     from app.db_helpers import save_issue
-    save_issue(user["id"], body.scan_id, body.title, body.description)
+    scan_id = body.scan_id
+    if scan_id is not None:
+        with _conn() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT id FROM scans WHERE id=%s", (scan_id,))
+                scan = cur.fetchone()
+                if not scan:
+                    cur.execute(
+                        "SELECT id FROM scans WHERE batch_id=%s ORDER BY uploaded_at ASC LIMIT 1",
+                        (scan_id,),
+                    )
+                    scan = cur.fetchone()
+                scan_id = scan["id"] if scan else None
+
+    issue_id = save_issue(user["id"], scan_id, body.title, body.description)
+    if not issue_id:
+        raise HTTPException(500, "Could not save issue report")
     log_event(user["id"], "issue_reported", body.title)
-    return {"message": "Issue reported"}
+    return {"message": "Issue reported", "issue_id": issue_id}

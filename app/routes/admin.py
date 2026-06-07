@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from psycopg2.extras import RealDictCursor
 from app.db_helpers import get_system_logs, get_issues, update_user, _conn, log_event
 from app.auth_utils import admin_only
+from app.name_utils import format_title
 
 router = APIRouter()
 
@@ -19,7 +20,29 @@ def list_users(admin: dict = Depends(admin_only)):
                 "SELECT id, full_name, email, role, title, professional_role, institution, created_at FROM users"
             )
             rows = cur.fetchall()
-    return [dict(r) for r in rows]
+    users = []
+    for row in rows:
+        item = dict(row)
+        item["display_title"] = format_title(item.get("title"))
+        users.append(item)
+    return users
+
+
+@router.get("/stats")
+def admin_stats(admin: dict = Depends(admin_only)):
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT COUNT(*) AS total FROM users")
+            total_users = cur.fetchone()["total"]
+            cur.execute("SELECT COUNT(*) AS total FROM batches")
+            total_analyses = cur.fetchone()["total"]
+            cur.execute("SELECT COUNT(*) AS total FROM issues WHERE status='open'")
+            open_issues = cur.fetchone()["total"]
+    return {
+        "total_users": total_users,
+        "total_analyses": total_analyses,
+        "open_issues": open_issues,
+    }
 
 
 @router.get("/logs")
@@ -48,7 +71,21 @@ def toggle_user(user_id: int, admin: dict = Depends(admin_only)):
 
 @router.put("/issues/{issue_id}/close")
 def close_issue(issue_id: int, admin: dict = Depends(admin_only)):
+    return set_issue_status(issue_id, "closed", admin)
+
+
+@router.put("/issues/{issue_id}/reopen")
+def reopen_issue(issue_id: int, admin: dict = Depends(admin_only)):
+    return set_issue_status(issue_id, "open", admin)
+
+
+def set_issue_status(issue_id: int, new_status: str, admin: dict):
     with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("UPDATE issues SET status='closed' WHERE id=%s", (issue_id,))
-    return {"message": "Issue closed"}
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT id, title FROM issues WHERE id=%s", (issue_id,))
+            issue = cur.fetchone()
+            if not issue:
+                raise HTTPException(404, "Issue not found")
+            cur.execute("UPDATE issues SET status=%s WHERE id=%s", (new_status, issue_id))
+    log_event(admin["id"], f"issue_{new_status}", f"Issue {issue_id}: {issue['title']}")
+    return {"message": f"Issue {new_status}", "status": new_status}

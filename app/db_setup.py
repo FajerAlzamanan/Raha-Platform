@@ -131,6 +131,26 @@ def create_tables():
             ALTER TABLE results ADD COLUMN IF NOT EXISTS tb_sp REAL
         ''')
 
+        cursor.execute('''
+            UPDATE users
+            SET
+                title = regexp_replace(
+                    COALESCE(
+                        NULLIF(title, ''),
+                        regexp_replace(full_name, '^((Dr|Ms|Mr|Mrs|Prof))\\.?\\s+.*$', '\\1', 'i')
+                    ),
+                    '\\.$',
+                    ''
+                ),
+                full_name = regexp_replace(
+                    regexp_replace(full_name, '^(Dr|Ms|Mr|Mrs|Prof)\\.?\\s+', '', 'i'),
+                    '^[\\.\\s]+',
+                    ''
+                )
+            WHERE full_name ~* '^(Dr|Ms|Mr|Mrs|Prof)\\.?\\s+'
+               OR full_name ~ '^[\\.\\s]+'
+        ''')
+
         conn.commit()
         print("All tables created!")
     except Exception as e:

@@ -53,7 +53,7 @@
           <label class="text-sm font-medium" style="color:var(--text-primary)">Institution</label>
           <div class="input-icon">
             <i data-lucide="building-2" class="icon w-4 h-4"></i>
-            <input id="f-institution" type="text" class="input" placeholder="University / Research Center"/>
+            <input id="f-institution" type="text" class="input" placeholder="e.g. Imam Abdulrahman Bin Faisal University"/>
           </div>
         </div>
 
@@ -196,11 +196,10 @@ document.getElementById('signup-form').addEventListener('submit', async e => {
   btn.innerHTML = 'Creating Account… <i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i>';
   lucide.createIcons();
 
-  const full_name = title ? `${title}. ${name}` : name;
   try {
     await api('/api/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ full_name, email, password: pw, title, gender, professional_role: prof_role }),
+      body: JSON.stringify({ full_name: name, email, password: pw, title, gender, professional_role: prof_role }),
     });
     showModal(`
       <div class="text-center space-y-4">

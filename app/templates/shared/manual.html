@@ -1,47 +1,54 @@
 {% extends "base.html" %}
 {% block title %}Platform Manual – Raha{% endblock %}
 
+{% block head %}
+<style>
+  .manual-role { display: none; }
+  body.manual-admin .manual-admin,
+  body.manual-researcher .manual-researcher,
+  body.manual-public .manual-public { display: block; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-6xl mx-auto px-8 py-12 space-y-10">
+<div class="max-w-6xl mx-auto px-8 py-12 space-y-10 manual-role manual-admin">
   <section class="relative overflow-hidden rounded-[2rem] border p-8 md:p-12" style="border-color:var(--border);background:linear-gradient(135deg,var(--bg-card) 0%, var(--surface) 100%)">
-    <div class="absolute -top-16 -right-10 h-48 w-48 rounded-full" style="background:var(--rp15);filter:blur(24px)"></div>
-    <div class="absolute -bottom-12 -left-8 h-40 w-40 rounded-full" style="background:var(--rp10);filter:blur(20px)"></div>
     <div class="relative z-10 max-w-3xl space-y-5">
-      <span class="badge" style="background:var(--rp10);color:var(--rp)">User Guide</span>
+      <span class="badge badge-admin">Admin Guide</span>
       <h1 class="font-heading text-4xl md:text-5xl font-bold tracking-tight" style="color:var(--text-primary)">
-        Raha Platform <span style="color:var(--rp)">Manual</span>
+        Admin <span style="color:var(--rt)">Manual</span>
       </h1>
       <p class="text-lg leading-relaxed" style="color:var(--text-secondary)">
-        This manual walks you through the full Raha workflow, from account access and password recovery to scan analysis, result review, and admin monitoring.
+        This manual focuses on administrative oversight: monitoring activity, reviewing users, handling reported issues, and checking system logs.
       </p>
       <div class="flex flex-wrap gap-3">
-        <a href="#quick-start" class="btn-primary">Quick Start <i data-lucide="arrow-down" class="w-4 h-4"></i></a>
-        <a href="/contact" class="btn-outline">Need Support?</a>
+        <a href="#admin-quick-start" class="btn-primary">Admin Quick Start <i data-lucide="arrow-down" class="w-4 h-4"></i></a>
+        <a href="/admin/dashboard" class="btn-outline">Open Dashboard</a>
       </div>
     </div>
   </section>
 
-  <section id="quick-start" class="grid lg:grid-cols-[1.2fr_.8fr] gap-6">
+  <section id="admin-quick-start" class="grid lg:grid-cols-[1.15fr_.85fr] gap-6">
     <div class="card p-8 space-y-5">
       <div class="flex items-center gap-3">
         <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:var(--rp10)">
-          <i data-lucide="sparkles" class="w-6 h-6" style="color:var(--rp)"></i>
+          <i data-lucide="shield-check" class="w-6 h-6" style="color:var(--rt)"></i>
         </div>
         <div>
-          <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Quick Start</h2>
-          <p class="text-sm" style="color:var(--text-secondary)">The fastest path for a new user.</p>
+          <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Admin Quick Start</h2>
+          <p class="text-sm" style="color:var(--text-secondary)">The essential checks for system administrators.</p>
         </div>
       </div>
       <div class="space-y-4">
         {% for num, title, body in [
-          ('1','Create an account','Open Sign Up, enter your name, institutional email, role, gender, and a strong password.'),
-          ('2','Log in securely','Use your registered email and password on the Login page to access the researcher workspace.'),
-          ('3','Start an analysis','Open Start Analyze, upload your supported scan files, give the batch a title, and launch the AI run.'),
-          ('4','Review outputs','Visit View Results to inspect BV/TV values, severity labels, diagnosis text, and batch history.'),
-          ('5','Manage your account','Update your profile details, change your avatar, or use Forgot Password if access is lost.')
+          ('1','Open the dashboard','Review total users, total analyses, open issues, and recent activity.'),
+          ('2','Review users','Open Users to search accounts, check titles and roles, and suspend or reactivate researcher access.'),
+          ('3','Inspect issues','Open Issues to review researcher reports, read descriptions, and close resolved items.'),
+          ('4','Audit logs','Open Logs to filter system events such as login, analysis, issue, and account activity.'),
+          ('5','Review reports','Open a scan report when needed and export the corrected PDF or numeric CSV for documentation.')
         ] %}
         <div class="flex gap-4 items-start">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-heading font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,var(--rp),var(--rs))">{{ num }}</div>
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-heading font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,var(--rt),var(--rs))">{{ num }}</div>
           <div class="space-y-1">
             <h3 class="font-heading text-lg font-bold" style="color:var(--text-primary)">{{ title }}</h3>
             <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">{{ body }}</p>
@@ -52,23 +59,23 @@
     </div>
 
     <div class="card p-8 space-y-5" style="background:var(--bg-card-glass);backdrop-filter:blur(10px)">
-      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Supported Areas</h2>
+      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Admin Areas</h2>
       <div class="grid gap-3">
         {% for icon, title in [
-          ('shield-check','Authentication'),
-          ('scan-search','Scan Analysis'),
-          ('bar-chart-3','Result Review'),
-          ('user-circle','Profile Management'),
-          ('settings-2','Admin Oversight')
+          ('layout-dashboard','System Overview'),
+          ('users','User Management'),
+          ('alert-triangle','Issue Review'),
+          ('file-text','Activity Logs'),
+          ('file-down','Report Export Review')
         ] %}
         <div class="flex items-center gap-3 rounded-2xl px-4 py-3" style="background:var(--surface)">
-          <i data-lucide="{{ icon }}" class="w-5 h-5" style="color:var(--rp)"></i>
+          <i data-lucide="{{ icon }}" class="w-5 h-5" style="color:var(--rt)"></i>
           <span class="font-medium" style="color:var(--text-primary)">{{ title }}</span>
         </div>
         {% endfor %}
       </div>
       <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">
-        Supported researcher pages include <strong>Analyze</strong>, <strong>Results</strong>, <strong>Learn</strong>, and <strong>Profile</strong>. Administrative pages include user, issue, and log monitoring.
+        The admin manual does not include scan-upload instructions because administrators monitor and review the platform rather than run researcher analyses.
       </p>
     </div>
   </section>
@@ -76,55 +83,51 @@
   <section class="space-y-5">
     <div class="flex items-center gap-3">
       <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background:var(--rp10)">
-        <i data-lucide="book-open" class="w-5 h-5" style="color:var(--rp)"></i>
+        <i data-lucide="book-open" class="w-5 h-5" style="color:var(--rt)"></i>
       </div>
       <div>
-        <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Detailed Workflows</h2>
-        <p class="text-sm" style="color:var(--text-secondary)">Step-by-step instructions for the main parts of the platform.</p>
+        <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Admin Workflows</h2>
+        <p class="text-sm" style="color:var(--text-secondary)">Step-by-step instructions for administrative pages.</p>
       </div>
     </div>
 
     <div class="grid gap-5">
       {% for icon, title, steps in [
-        ('user-plus','1. Account Registration', [
-          'Open the Sign Up page from the home screen or navbar.',
-          'Select your title, enter your full name, institution, professional role, gender, and email address.',
-          'Create a password with at least 8 characters, one uppercase letter, and one number.',
-          'Submit the form and use the login page once your registration succeeds.'
+        ('layout-dashboard','1. Dashboard Monitoring', [
+          'Open Admin Dashboard from the navigation bar or go to /admin/dashboard.',
+          'Check Total Users, Total Analyses, and Open Issues for a quick platform overview.',
+          'Review Recent Activity to identify important system events.',
+          'Use the shortcut buttons to move to Users, Issues, or Logs.'
         ]),
-        ('log-in','2. Login and Access', [
-          'Open the Login page and enter your registered email address and password.',
-          'Use Remember Me if you want the session stored in local storage on your machine.',
-          'After successful login, the platform redirects you to the main dashboard.'
+        ('users','2. User Management', [
+          'Open Users to view registered accounts.',
+          'Use the search field to find a user by name or email.',
+          'Use the role filter to focus on researchers, admins, or suspended accounts.',
+          'Suspend or reactivate researcher accounts only when access needs to change.'
         ]),
-        ('key-round','3. Password Reset', [
-          'Open Forgot Password from the login screen.',
-          'Enter your registered email address and submit the request.',
-          'Check your email for the reset link, then open the reset page.',
-          'Enter a new valid password and confirm it to finish the reset.'
+        ('alert-triangle','3. Issue Review', [
+          'Open Issues to inspect reports submitted by researchers.',
+          'Read the issue title, reporter, description, status, and date.',
+          'Use the Close action only after the issue has been reviewed or resolved.',
+          'Keep unresolved reports open so they remain visible to administrators.'
         ]),
-        ('upload-cloud','4. Upload and Analyze Scans', [
-          'Open Start Analyze and upload supported micro-CT image files.',
-          'Provide a meaningful batch title so you can identify the run later.',
-          'Start the analysis and wait for the platform to complete processing.',
-          'Use the batch and scan detail views to inspect processed outputs.'
+        ('file-text','4. System Logs', [
+          'Open Logs to audit recent platform activity.',
+          'Filter logs by event type or description.',
+          'Use timestamps, user IDs, and event details to understand what happened.',
+          'Use logs for oversight and troubleshooting, not for editing researcher data.'
         ]),
-        ('file-bar-chart','5. Review Results', [
-          'Open View Results to review completed scan sessions.',
-          'Inspect quantitative outputs such as BV, TV, and BV/TV.',
-          'Review severity and diagnostic descriptions generated by the system.',
-          'Open individual scan or batch detail pages for deeper review.'
-        ]),
-        ('user-round-cog','6. Profile and Support', [
-          'Open Profile to review your account information and avatar.',
-          'Use Contact Us when you need help, want to report an issue, or have a question for the team.',
-          'Use Guides & Tutorials for shorter onboarding help alongside this manual.'
+        ('file-down','5. Report Review and Export', [
+          'Open an analysis report only when an admin review is needed.',
+          'Use Export CSV for numeric data and Export PDF Report for a designed review document.',
+          'Confirm the PDF includes readable measurements, scan preview, graphs, and system branding.',
+          'Share exported reports only according to project data-handling rules.'
         ])
       ] %}
       <article class="card p-7 space-y-5">
         <div class="flex items-center gap-4">
           <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:var(--rp10)">
-            <i data-lucide="{{ icon }}" class="w-6 h-6" style="color:var(--rp)"></i>
+            <i data-lucide="{{ icon }}" class="w-6 h-6" style="color:var(--rt)"></i>
           </div>
           <h3 class="font-heading text-xl font-bold" style="color:var(--text-primary)">{{ title }}</h3>
         </div>
@@ -140,42 +143,80 @@
     </div>
   </section>
 
-  <section class="grid lg:grid-cols-2 gap-6">
-    <div class="card p-8 space-y-4">
-      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Admin Notes</h2>
-      <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">
-        Admin users can review platform activity from the dashboard, monitor issues reported by researchers, inspect system logs, and manage registered user accounts.
+  <section class="card p-8 space-y-4">
+    <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Admin Troubleshooting</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for q, a in [
+        ('Dashboard numbers look outdated?','Refresh the page after the server reloads; the dashboard reads live admin stats.'),
+        ('Cannot open a scan report?','Make sure you are logged in as admin. Admins can review scan reports for oversight.'),
+        ('User title looks wrong?','Titles are stored separately from full names and displayed with punctuation such as Dr.'),
+        ('Need support?','Use Contact Us or check logs and issue descriptions before escalating.')
+      ] %}
+      <details class="rounded-2xl border px-4 py-4 group" style="border-color:var(--border);background:var(--bg-surface)">
+        <summary class="list-none cursor-pointer font-semibold flex items-center justify-between" style="color:var(--text-primary)">
+          {{ q }}
+          <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180" style="color:var(--text-muted)"></i>
+        </summary>
+        <p class="mt-3 text-sm leading-relaxed" style="color:var(--text-secondary)">{{ a }}</p>
+      </details>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="max-w-6xl mx-auto px-8 py-12 space-y-10 manual-role manual-researcher manual-public">
+  <section class="relative overflow-hidden rounded-[2rem] border p-8 md:p-12" style="border-color:var(--border);background:linear-gradient(135deg,var(--bg-card) 0%, var(--surface) 100%)">
+    <div class="relative z-10 max-w-3xl space-y-5">
+      <span class="badge" style="background:var(--rp10);color:var(--rp)">Researcher Guide</span>
+      <h1 class="font-heading text-4xl md:text-5xl font-bold tracking-tight" style="color:var(--text-primary)">
+        Raha Platform <span style="color:var(--rp)">Manual</span>
+      </h1>
+      <p class="text-lg leading-relaxed" style="color:var(--text-secondary)">
+        This manual walks researchers through account access, scan analysis, result review, exports, and support.
       </p>
-      <div class="space-y-3">
-        {% for item in [
-          'Users: review and manage registered accounts.',
-          'Issues: inspect reported scan or workflow problems.',
-          'Logs: audit sign-ins and other tracked system events.'
+      <div class="flex flex-wrap gap-3">
+        <a href="#researcher-quick-start" class="btn-primary">Quick Start <i data-lucide="arrow-down" class="w-4 h-4"></i></a>
+        <a href="/contact" class="btn-outline">Need Support?</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="researcher-quick-start" class="grid lg:grid-cols-[1.2fr_.8fr] gap-6">
+    <div class="card p-8 space-y-5">
+      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Researcher Quick Start</h2>
+      <div class="space-y-4">
+        {% for num, title, body in [
+          ('1','Create or update your account','Enter your title, full name, institution, role, gender, email, and password.'),
+          ('2','Start an analysis','Open Start Analyze, choose Volume Only or Volume + Label, and upload the required files.'),
+          ('3','Review results','Use View Results to inspect measurements, severity, diagnosis, and scan history.'),
+          ('4','Inspect scan details','Open the scan viewer, adjust mask visibility, and review detailed graphs.'),
+          ('5','Export reports','Download CSV for numeric analysis and PDF for an organized visual report.')
         ] %}
-        <div class="flex items-start gap-3">
-          <i data-lucide="check-circle-2" class="w-5 h-5 mt-0.5" style="color:var(--rp)"></i>
-          <p class="text-sm" style="color:var(--text-secondary)">{{ item }}</p>
+        <div class="flex gap-4 items-start">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-heading font-bold text-white flex-shrink-0" style="background:linear-gradient(135deg,var(--rp),var(--rs))">{{ num }}</div>
+          <div class="space-y-1">
+            <h3 class="font-heading text-lg font-bold" style="color:var(--text-primary)">{{ title }}</h3>
+            <p class="text-sm leading-relaxed" style="color:var(--text-secondary)">{{ body }}</p>
+          </div>
         </div>
         {% endfor %}
       </div>
     </div>
 
-    <div class="card p-8 space-y-4">
-      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Troubleshooting</h2>
-      <div class="space-y-4">
-        {% for q, a in [
-          ('Cannot log in?','Check that your email is registered and your password matches the platform rules. Use Forgot Password if needed.'),
-          ('Reset email not arriving?','Confirm the configured Gmail SMTP account is active and the app password is correct, then try again.'),
-          ('Analysis not visible?','Wait for the batch to finish, then refresh Results or open the related batch detail page.'),
-          ('Need help?','Use the Contact Us page so the support team can review the problem and respond.')
+    <div class="card p-8 space-y-5" style="background:var(--bg-card-glass);backdrop-filter:blur(10px)">
+      <h2 class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Researcher Areas</h2>
+      <div class="grid gap-3">
+        {% for icon, title in [
+          ('scan-search','Start Analyze'),
+          ('bar-chart-3','View Results'),
+          ('layers-3','Scan Detail Viewer'),
+          ('file-down','CSV and PDF Export'),
+          ('graduation-cap','Guides and Tutorials')
         ] %}
-        <details class="rounded-2xl border px-4 py-4 group" style="border-color:var(--border);background:var(--bg-surface)">
-          <summary class="list-none cursor-pointer font-semibold flex items-center justify-between" style="color:var(--text-primary)">
-            {{ q }}
-            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform group-open:rotate-180" style="color:var(--text-muted)"></i>
-          </summary>
-          <p class="mt-3 text-sm leading-relaxed" style="color:var(--text-secondary)">{{ a }}</p>
-        </details>
+        <div class="flex items-center gap-3 rounded-2xl px-4 py-3" style="background:var(--surface)">
+          <i data-lucide="{{ icon }}" class="w-5 h-5" style="color:var(--rp)"></i>
+          <span class="font-medium" style="color:var(--text-primary)">{{ title }}</span>
+        </div>
         {% endfor %}
       </div>
     </div>
@@ -185,6 +226,15 @@
 
 {% block scripts %}
 <script>
+const manualUser = Auth.user();
+document.body.classList.remove('manual-admin', 'manual-researcher', 'manual-public');
+if (manualUser?.role === 'admin') {
+  document.body.classList.add('manual-admin');
+} else if (manualUser?.role === 'researcher') {
+  document.body.classList.add('manual-researcher');
+} else {
+  document.body.classList.add('manual-public');
+}
 lucide.createIcons();
 </script>
 {% endblock %}

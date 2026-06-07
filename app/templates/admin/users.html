@@ -55,7 +55,7 @@ function render(users) {
       <td class="font-medium" style="color:var(--text-primary)">${esc(u.full_name)}</td>
       <td class="font-mono text-xs" style="color:var(--text-secondary)">${esc(u.email)}</td>
       <td><span class="badge ${rc}">${u.role}</span></td>
-      <td style="color:var(--text-secondary)">${esc(u.title??'—')}</td>
+      <td style="color:var(--text-secondary)">${esc(u.display_title || '—')}</td>
       <td class="text-xs" style="color:var(--text-muted)">${fmtDate(u.created_at)}</td>
       <td>
         ${u.role !== 'admin' ? `<button onclick="toggle(${u.id},'${u.role}')" class="btn-outline" style="padding:.3rem .9rem;font-size:.78rem;${u.role==='suspended'?'':'color:#dc2626;border-color:#dc2626'}">${u.role==='suspended'?'Activate':'Suspend'}</button>` : '<span style="color:var(--text-muted);font-size:.8rem">—</span>'}

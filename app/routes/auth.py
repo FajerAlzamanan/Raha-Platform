@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from app.db_helpers import create_user, get_user, get_user_by_id, log_event, \
     save_reset_token, verify_reset_token, mark_token_used, mark_user_reset_tokens_used, update_user
 from app.auth_utils import hash_password, verify_password, validate_password, create_token
+from app.name_utils import format_title, split_title_from_name
 
 load_dotenv()
 MAIL_FROM = os.getenv("MAIL_FROM", "").strip()
@@ -43,6 +44,7 @@ def _send_reset_email(user: dict, reset_link: str) -> None:
     if not GMAIL_APP_PASSWORD:
         raise RuntimeError("GMAIL_APP_PASSWORD is not configured")
 
+    greeting_name = f"{format_title(user.get('title'))} {user['full_name']}".strip()
     html_body = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -75,7 +77,7 @@ def _send_reset_email(user: dict, reset_link: str) -> None:
           <tr>
             <td style="padding:40px 40px 32px;">
               <p style="margin:0 0 16px;font-size:16px;color:#374151;line-height:1.6;">
-                Hi <strong>{user['full_name']}</strong>,
+                Hi <strong>{greeting_name}</strong>,
               </p>
               <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.7;">
                 We received a request to reset the password for your Raha account. Click the button below to choose a new password. This link will expire in <strong>1 hour</strong>.
@@ -132,7 +134,7 @@ def _send_reset_email(user: dict, reset_link: str) -> None:
 """
 
     plain_body = (
-        f"Hi {user['full_name']},\n\n"
+        f"Hi {greeting_name},\n\n"
         "We received a request to reset the password for your Raha account.\n"
         f"Use this link to choose a new password: {reset_link}\n\n"
         "This link will expire in 1 hour.\n\n"
@@ -179,14 +181,15 @@ def signup(body: SignupRequest):
     if get_user(body.email):
         raise HTTPException(400, "Email already registered")
 
+    full_name, title = split_title_from_name(body.full_name, body.title)
     pw_hash = hash_password(body.password)
     create_user(
-        full_name=body.full_name,
+        full_name=full_name,
         email=body.email,
         password_hash=pw_hash,
         role="researcher",
         gender=body.gender,
-        title=body.title,
+        title=title,
         professional_role=body.professional_role,
     )
     return {"message": "Account created"}
@@ -200,6 +203,12 @@ def login(body: LoginRequest):
     if not verify_password(body.password, user["password_hash"]):
         raise HTTPException(400, "Invalid credentials")
 
+    full_name, title = split_title_from_name(user["full_name"], user.get("title"))
+    if full_name != user["full_name"] or title != user.get("title"):
+        update_user(user["id"], {"full_name": full_name, "title": title})
+        user["full_name"] = full_name
+        user["title"] = title
+
     log_event(user["id"], "login", f"{user['email']} logged in")
 
     token = create_token(user["id"], user["role"])
@@ -207,6 +216,7 @@ def login(body: LoginRequest):
         "token": token,
         "role": user["role"],
         "full_name": user["full_name"],
+        "title": user.get("title"),
     }
 
 
