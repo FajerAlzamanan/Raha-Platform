@@ -102,7 +102,7 @@
             <div class="input-icon relative">
               <i data-lucide="lock" class="icon w-4 h-4"></i>
               <input id="f-pw" type="password" class="input" style="padding-right:2.5rem" placeholder="••••••••" required/>
-              <button type="button" onclick="togglePw('f-pw')"
+              <button type="button" onclick="togglePw('f-pw', this)" aria-label="Show password" aria-pressed="false"
                 class="absolute right-3 top-1/2 -translate-y-1/2" style="color:#9ca3af;background:none;border:none;cursor:pointer">
                 <i data-lucide="eye" class="w-4 h-4"></i>
               </button>
@@ -115,7 +115,7 @@
             <div class="input-icon relative">
               <i data-lucide="lock" class="icon w-4 h-4"></i>
               <input id="f-pw2" type="password" class="input" style="padding-right:2.5rem" placeholder="••••••••" required/>
-              <button type="button" onclick="togglePw('f-pw2')"
+              <button type="button" onclick="togglePw('f-pw2', this)" aria-label="Show password" aria-pressed="false"
                 class="absolute right-3 top-1/2 -translate-y-1/2" style="color:#9ca3af;background:none;border:none;cursor:pointer">
                 <i data-lucide="eye" class="w-4 h-4"></i>
               </button>
@@ -140,9 +140,15 @@
 
 {% block scripts %}
 <script>
-function togglePw(id) {
+function togglePw(id, btn) {
   const el = document.getElementById(id);
-  el.type = el.type === 'password' ? 'text' : 'password';
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  if (btn) {
+    btn.innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}" class="w-4 h-4"></i>`;
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+  }
   lucide.createIcons();
 }
 
@@ -161,6 +167,7 @@ document.getElementById('signup-form').addEventListener('submit', async e => {
   const title   = titleEl?.value ?? '';
   const name    = document.getElementById('f-name').value.trim();
   const email   = document.getElementById('f-email').value.trim();
+  const institution = document.getElementById('f-institution').value.trim();
   const gender  = document.getElementById('f-gender').value;
   const roleVal = document.getElementById('f-role').value;
   const prof_role = roleVal === 'Other'
@@ -199,7 +206,7 @@ document.getElementById('signup-form').addEventListener('submit', async e => {
   try {
     await api('/api/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ full_name: name, email, password: pw, title, gender, professional_role: prof_role }),
+      body: JSON.stringify({ full_name: name, email, password: pw, title, gender, institution, professional_role: prof_role }),
     });
     showModal(`
       <div class="text-center space-y-4">

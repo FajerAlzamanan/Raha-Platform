@@ -47,7 +47,7 @@
           <div class="input-icon relative">
             <i data-lucide="lock" class="icon w-4 h-4"></i>
             <input id="f-password" type="password" class="input" style="padding-right:2.5rem" placeholder="••••••••" required/>
-            <button type="button" onclick="togglePw('f-password')"
+            <button type="button" onclick="togglePw('f-password', this)" aria-label="Show password" aria-pressed="false"
               class="absolute right-3 top-1/2 -translate-y-1/2" style="color:#9ca3af;background:none;border:none;cursor:pointer">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
@@ -77,9 +77,15 @@
 
 {% block scripts %}
 <script>
-function togglePw(id) {
+function togglePw(id, btn) {
   const el = document.getElementById(id);
-  el.type = el.type === 'password' ? 'text' : 'password';
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  if (btn) {
+    btn.innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}" class="w-4 h-4"></i>`;
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+  }
   lucide.createIcons();
 }
 
@@ -112,7 +118,13 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     document.getElementById('alert-success').classList.remove('hidden');
     setTimeout(() => window.location.href = '/', 1200);
   } catch(err) {
-    showErr('Invalid email or password. Please try again.');
+    const message = err?.message || 'Invalid email or password. Please try again.';
+    if (message.toLowerCase().includes('suspended')) {
+      Auth.clear();
+      showSuspendedModal();
+    } else {
+      showErr(message);
+    }
     btn.innerHTML = 'Log In <i data-lucide="arrow-right" class="w-5 h-5"></i>';
     lucide.createIcons();
   }

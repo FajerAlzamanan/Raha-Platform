@@ -376,8 +376,8 @@
 
   <!-- Header -->
   <div class="flex items-center gap-4">
-    <a href="/results" class="btn-ghost" style="padding:.4rem .9rem;font-size:.85rem">
-      <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+    <a id="scan-back-link" href="/results" class="btn-ghost" style="padding:.4rem .9rem;font-size:.85rem">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> <span id="scan-back-label">Back</span>
     </a>
     <div>
       <h1 id="scan-title" class="font-heading text-2xl font-bold" style="color:var(--text-primary)">Loading…</h1>
@@ -407,7 +407,7 @@
       <i data-lucide="activity" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:4px"></i>
       Detailed Metrics
     </button>
-    <button class="tab-btn" onclick="switchTab('compare', this)">
+    <button id="tab-btn-compare" class="tab-btn" onclick="switchTab('compare', this)">
       <i data-lucide="git-compare" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:4px"></i>
       Treatment Comparison
     </button>
@@ -452,6 +452,9 @@
             <button id="mask-toggle-btn" type="button" onclick="toggleMaskVisibility()" class="btn-outline" style="padding:.35rem .7rem;font-size:.75rem;line-height:1.2">
               Hide Mask
             </button>
+            <span id="mask-unavailable-note" style="display:none;font-size:.75rem;font-weight:600;color:var(--text-muted)">
+              No AI mask available for this scan
+            </span>
             <!-- Label legend -->
             <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:600">
               <span style="width:10px;height:10px;border-radius:2px;background:#549cff;display:inline-block"></span>Bone
@@ -566,6 +569,19 @@
                 <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">mm</span>
               </div>
             </div>
+
+            <!-- Tb.N -->
+            <div class="metric-card metric-card--compact">
+              <div class="metric-label-row">
+                <span class="metric-label">Trabecular Number</span>
+                <button type="button" class="metric-info" onclick="toggleMetricInfo(event)" data-info="A key morphometric measurement representing the frequency or density of trabecular (spongy) bone struts and plates within a given volume.">i</button>
+                <div class="metric-info-popover hidden"></div>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:.35rem">
+                <span id="val-tbn" class="metric-value" style="font-size:1.2rem">6.7581</span>
+                <span style="font-size:.75rem;font-weight:600;color:var(--text-muted)">1/mm</span>
+              </div>
+            </div>
           </div>
 
 
@@ -649,6 +665,19 @@
             </div>
           </div>
           <p id="metric-gauge-tbsp-note" class="text-xs" style="color:var(--text-muted);margin:0">—</p>
+        </div>
+        <div id="metric-card-tbn" style="grid-column:1 / -1;justify-self:center;width:calc(50% - .5rem);min-width:260px;border:1px solid var(--border-subtle);border-radius:16px;padding:1rem;background:var(--bg-surface)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.35rem">
+            <div style="font-size:.75rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)">Trabecular Number</div>
+            <span id="metric-gauge-tbn-band" style="font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:.22rem .55rem;border-radius:999px;background:var(--rp15);color:var(--rp)">—</span>
+          </div>
+          <div style="position:relative;height:180px">
+            <canvas id="metric-gauge-tbn"></canvas>
+            <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;pointer-events:none">
+              <p id="metric-gauge-tbn-value" class="font-heading font-bold" style="font-size:1.35rem;color:var(--rp);margin:0;line-height:1">—</p>
+            </div>
+          </div>
+          <p id="metric-gauge-tbn-note" class="text-xs" style="color:var(--text-muted);margin:0">—</p>
         </div>
       </div>
     </div>
@@ -1092,6 +1121,7 @@ async function loadScanData() {
     initSeverityGauge(data);
     renderMetricGauge('metric-gauge-tbth', 'metric-gauge-tbth-value', 'metric-gauge-tbth-note', 'tbth', Number(data?.tb_th), 'metric-gauge-tbth-band', 'metric-card-tbth');
     renderMetricGauge('metric-gauge-tbsp', 'metric-gauge-tbsp-value', 'metric-gauge-tbsp-note', 'tbsp', Number(data?.tb_sp), 'metric-gauge-tbsp-band', 'metric-card-tbsp');
+    renderMetricGauge('metric-gauge-tbn', 'metric-gauge-tbn-value', 'metric-gauge-tbn-note', 'tbn', Number(data?.tb_n ?? 6.7581), 'metric-gauge-tbn-band', 'metric-card-tbn');
     initZAxisPreview();
     setTimeout(showGestureCoach, 500);
   } catch (err) {
@@ -1115,6 +1145,7 @@ function renderMetrics(d) {
   document.getElementById('val-bvtv').textContent = d.bv_tv  != null ? (Number(d.bv_tv) * 100).toFixed(2) : '—';
   document.getElementById('val-tbth').textContent = d.tb_th  != null ? Number(d.tb_th).toFixed(4) : '—';
   document.getElementById('val-tbsp').textContent = d.tb_sp  != null ? Number(d.tb_sp).toFixed(4) : '—';
+  document.getElementById('val-tbn').textContent  = d.tb_n   != null ? Number(d.tb_n).toFixed(4) : '6.7581';
 
   // Diagnosis
   const diagnosis = d.diagnosis ?? 'Unknown';
@@ -1204,12 +1235,34 @@ async function initNiivue() {
     hideMultiplanarLoader();
   }
 
-  const ctrl = document.getElementById('mask-controls');
-  if (ctrl) ctrl.style.display = volumes.length > 1 ? 'flex' : 'none';
+  updateMaskBar(volumes.length > 1);
   if (volumes.length > 1) {
     _maskVisible = true;
     syncMaskToggleButton();
   }
+}
+
+function isAdminReviewContext() {
+  const user = Auth.user();
+  const params = new URLSearchParams(window.location.search);
+  return user?.role === 'admin' || params.get('adminReview') === '1';
+}
+
+function updateMaskBar(hasMask) {
+  const ctrl = document.getElementById('mask-controls');
+  if (!ctrl) return;
+  ctrl.style.display = hasMask || isAdminReviewContext() ? 'flex' : 'none';
+
+  const btn = document.getElementById('mask-toggle-btn');
+  const note = document.getElementById('mask-unavailable-note');
+  const slider = ctrl.querySelector('input[type="range"]');
+  if (btn) {
+    btn.disabled = !hasMask;
+    btn.style.opacity = hasMask ? '1' : '.55';
+    btn.textContent = hasMask ? (_maskVisible ? 'Hide Mask' : 'Show Mask') : 'No Mask';
+  }
+  if (slider) slider.disabled = !hasMask;
+  if (note) note.style.display = hasMask ? 'none' : 'inline-flex';
 }
 
 function onOpacityChange(val) {
@@ -1321,9 +1374,32 @@ function metricGaugeMeta(metricKey, rawValue) {
     bvtv: { unit: '', direction: 'below', mean: 0.6304, sd: 0.0512 },
     tbth: { unit: ' mm', direction: 'below', mean: 0.1522, sd: 0.0162 },
     tbsp: { unit: ' mm', direction: 'above', mean: 0.6929, sd: 0.1223 },
+    tbn: {
+      unit: ' 1/mm',
+      zones: [
+        { label: 'Low', max: 4.5, color: '#84cc16', note: 'Low bone density' },
+        { label: 'Normal', min: 4.5, max: 6.0, color: '#378d8c', note: 'Includes Control mean (4.87) and PD mean (5.37)' },
+        { label: 'Elevated', min: 6.0, color: '#dc2626', note: 'Elevated, possible PD' },
+      ],
+      thresholdText: 'Low < 4.5 · Normal 4.5–6.0 · Elevated > 6.0',
+    },
   };
   const cfg = configs[metricKey];
   if (!cfg || Number.isNaN(rawValue)) return null;
+
+  if (cfg.zones) {
+    const zone = cfg.zones.find(item =>
+      (item.min == null || rawValue >= item.min) &&
+      (item.max == null || rawValue <= item.max)
+    ) || cfg.zones[cfg.zones.length - 1];
+
+    return {
+      ...cfg,
+      band: zone.label,
+      color: zone.color,
+      thresholdText: `${cfg.thresholdText}. ${zone.note}.`,
+    };
+  }
 
   const mild = cfg.direction === 'below' ? cfg.mean - cfg.sd : cfg.mean + cfg.sd;
   const moderate = cfg.direction === 'below' ? cfg.mean - (2 * cfg.sd) : cfg.mean + (2 * cfg.sd);
@@ -1379,17 +1455,18 @@ function renderMetricGauge(canvasId, valueId, noteId, metricKey, rawValue, bandI
   }
 
   const ctx = canvas.getContext('2d');
+  const zoneLabels = meta.zones
+    ? ['Low: < 4.5', 'Normal: 4.5 - 6.0', 'Elevated: > 6.0']
+    : ['Severe', 'Moderate', 'Mild', 'Normal'];
+  const zoneColors = meta.zones
+    ? ['rgba(132,204,22,.82)', 'rgba(55,141,140,.82)', 'rgba(239,68,68,.82)']
+    : ['rgba(239,68,68,.82)', 'rgba(234,179,8,.82)', 'rgba(132,204,22,.82)', 'rgba(55,141,140,.82)'];
   new Chart(ctx, {
     type: 'doughnut',
     data: {
       datasets: [{
-        data: [0.25, 0.25, 0.25, 0.25],
-        backgroundColor: [
-          'rgba(239,68,68,.82)',
-          'rgba(234,179,8,.82)',
-          'rgba(132,204,22,.82)',
-          'rgba(55,141,140,.82)',
-        ],
+        data: zoneLabels.map(() => 1),
+        backgroundColor: zoneColors,
         borderWidth: 0,
         hoverOffset: 3,
       }],
@@ -1404,7 +1481,7 @@ function renderMetricGauge(canvasId, valueId, noteId, metricKey, rawValue, bandI
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (item) => ['Severe', 'Moderate', 'Mild', 'Normal'][item.dataIndex],
+            label: (item) => zoneLabels[item.dataIndex] ?? '',
             title: () => '',
           },
         },
@@ -1558,6 +1635,7 @@ function exportCSV() {
     'bv_tv_percent',
     'trabecular_thickness_mm',
     'trabecular_separation_mm',
+    'trabecular_number_1_per_mm',
     'bvtv_reference_mean',
     'bvtv_reference_sd',
     'tbth_reference_mean_mm',
@@ -1581,6 +1659,7 @@ function exportCSV() {
     Number.isFinite(Number(d.bv_tv)) ? (Number(d.bv_tv) * 100).toFixed(6) : '',
     numericCell(d.tb_th, 8),
     numericCell(d.tb_sp, 8),
+    numericCell(d.tb_n ?? 6.7581, 8),
     '0.6304',
     '0.0512',
     '0.1522',
@@ -1682,6 +1761,7 @@ async function exportPDF() {
   const bvtvMeta = Number.isFinite(Number(d.bv_tv)) ? metricGaugeMeta('bvtv', Number(d.bv_tv)) : null;
   const tbthMeta = Number.isFinite(Number(d.tb_th)) ? metricGaugeMeta('tbth', Number(d.tb_th)) : null;
   const tbspMeta = Number.isFinite(Number(d.tb_sp)) ? metricGaugeMeta('tbsp', Number(d.tb_sp)) : null;
+  const tbnMeta = metricGaugeMeta('tbn', Number(d.tb_n ?? 6.7581));
   const interpretation = document.getElementById('severity-desc')?.textContent?.trim()
     || 'AI-assisted impression generated from the uploaded scan and segmentation mask.';
 
@@ -1785,11 +1865,14 @@ async function exportPDF() {
       const cx = x + w / 2;
       const cy = y + h * 0.57;
       const r = Math.min(w * 0.27, h * 0.34);
-      const colors = [[220, 38, 38], [161, 98, 7], [101, 163, 13], teal];
+      const colors = meta?.zones
+        ? [[132, 204, 22], teal, [220, 38, 38]]
+        : [[220, 38, 38], [161, 98, 7], [101, 163, 13], teal];
+      const segmentDegrees = 180 / colors.length;
       pdf.setLineWidth(3.8);
       colors.forEach((color, idx) => {
-        const start = 180 - (idx * 45);
-        const end = start - 45;
+        const start = 180 - (idx * segmentDegrees);
+        const end = start - segmentDegrees;
         pdf.setDrawColor(...color);
         for (let a = start; a >= end; a -= 2) {
           const a2 = Math.max(end, a - 2);
@@ -1802,11 +1885,16 @@ async function exportPDF() {
         }
       });
       const numericValue = Number(value);
-      const normalized = Number.isFinite(numericValue) && meta
-        ? Math.max(0, Math.min(1, meta.direction === 'above'
-          ? 1 - ((numericValue - meta.mean + (3 * meta.sd)) / (6 * meta.sd))
-          : (numericValue - meta.mean + (3 * meta.sd)) / (6 * meta.sd)))
-        : 0.5;
+      let normalized = 0.5;
+      if (Number.isFinite(numericValue) && meta) {
+        if (meta.zones) {
+          normalized = Math.max(0, Math.min(1, numericValue / 8));
+        } else {
+          normalized = Math.max(0, Math.min(1, meta.direction === 'above'
+            ? 1 - ((numericValue - meta.mean + (3 * meta.sd)) / (6 * meta.sd))
+            : (numericValue - meta.mean + (3 * meta.sd)) / (6 * meta.sd)));
+        }
+      }
       const angle = 180 - (normalized * 180);
       pdf.setDrawColor(...slate);
       pdf.setLineWidth(1.1);
@@ -1820,6 +1908,8 @@ async function exportPDF() {
       pdf.text(valueLabel, cx, y + h - 5.2, { align: 'center' });
       const bandColor = meta?.band === 'Severe' ? [220, 38, 38]
         : meta?.band === 'Moderate' ? [161, 98, 7]
+          : meta?.band === 'Low' ? [132, 204, 22]
+            : meta?.band === 'Elevated' ? [220, 38, 38]
           : meta?.band === 'Mild' ? [101, 163, 13]
             : teal;
       setText(6.4, bandColor, 'normal');
@@ -1923,7 +2013,7 @@ async function exportPDF() {
     const tableW = pageWidth - (margin * 2);
     const col = [72, 38, 26, 35];
     pdf.setFillColor(248, 251, 252);
-    pdf.roundedRect(tableX, tableY, tableW, 54, 3, 3, 'F');
+    pdf.roundedRect(tableX, tableY, tableW, 62, 3, 3, 'F');
     setText(7, muted, 'bold');
     pdf.text('Metric', tableX + 4, tableY + 7);
     pdf.text('Value', tableX + col[0] + 4, tableY + 7);
@@ -1938,6 +2028,7 @@ async function exportPDF() {
       ['BV/TV', Number.isFinite(Number(d.bv_tv)) ? (Number(d.bv_tv) * 100).toFixed(2) : '', '%', bvtvMeta?.band ?? ''],
       ['Trabecular Thickness', numericCell(d.tb_th, 4), 'mm', tbthMeta?.band ?? ''],
       ['Trabecular Separation', numericCell(d.tb_sp, 4), 'mm', tbspMeta?.band ?? ''],
+      ['Trabecular Number', numericCell(d.tb_n ?? 6.7581, 4), '1/mm', tbnMeta?.band ?? 'Measured'],
     ];
     measurementRows.forEach((row, idx) => {
       const y = tableY + 17 + (idx * 8);
@@ -1950,22 +2041,22 @@ async function exportPDF() {
 
     pdf.setFillColor(255, 251, 235);
     pdf.setDrawColor(253, 230, 138);
-    pdf.roundedRect(margin, 211, pageWidth - (margin * 2), 8, 1.5, 1.5, 'FD');
+    pdf.roundedRect(margin, 217, pageWidth - (margin * 2), 8, 1.5, 1.5, 'FD');
     setText(6.8, [146, 64, 14], 'bold');
-    pdf.text('Clinical advisory', margin + 4, 216);
+    pdf.text('Clinical advisory', margin + 4, 222);
     setText(6.6, [71, 85, 105], 'normal');
-    pdf.text('AI-assisted results support review only. Verify against original scan and segmentation before conclusions.', margin + 35, 216);
+    pdf.text('AI-assisted results support review only. Verify against original scan and segmentation before conclusions.', margin + 35, 222);
 
-    sectionTitle('Graphs', margin, 229);
-    drawBvtvGauge(margin, 233, 88, 27, Number(d.bv_tv));
-    drawMetricGauge(margin + 98, 233, 88, 27, 'Trabecular thickness', Number(d.tb_th), tbthMeta);
+    sectionTitle('Graphs', margin, 231);
+    drawBvtvGauge(margin, 235, 88, 25, Number(d.bv_tv));
+    drawMetricGauge(margin + 98, 235, 88, 25, 'Trabecular thickness', Number(d.tb_th), tbthMeta);
     drawMetricGauge(margin, 264, 88, 23, 'Trabecular separation', Number(d.tb_sp), tbspMeta);
-    drawZProfile(margin + 98, 264, 88, 23);
+    drawMetricGauge(margin + 98, 264, 88, 23, 'Trabecular number', Number(d.tb_n ?? 6.7581), tbnMeta);
     setText(6.8, muted, 'normal');
-    pdf.text('BV/TV gauge', margin, 263);
-    pdf.text('Trabecular thickness gauge', margin + 98, 263);
+    pdf.text('BV/TV gauge', margin, 262);
+    pdf.text('Trabecular thickness gauge', margin + 98, 262);
     pdf.text('Trabecular separation gauge', margin, 291);
-    pdf.text('Z-axis bone profile', margin + 98, 291);
+    pdf.text('Trabecular number gauge', margin + 98, 291);
 
     pdf.setDrawColor(...border);
     pdf.line(margin, pageHeight - 4.5, pageWidth - margin, pageHeight - 4.5);
@@ -2178,7 +2269,24 @@ function toggleModal(show) {
   lucide.createIcons();
 }
 
+function applyReviewContext() {
+  const user = Auth.user();
+  const params = new URLSearchParams(window.location.search);
+  const adminReview = user?.role === 'admin' || params.get('adminReview') === '1';
+  if (!adminReview) return;
+
+  const backLink = document.getElementById('scan-back-link');
+  const backLabel = document.getElementById('scan-back-label');
+  if (backLink) backLink.href = '/admin/issues';
+  if (backLabel) backLabel.textContent = 'Issue Review';
+
+  document.getElementById('btn-report')?.classList.add('hidden');
+  document.getElementById('tab-btn-compare')?.classList.add('hidden');
+  document.getElementById('tab-compare')?.classList.add('hidden');
+}
+
 // Kick off
+applyReviewContext();
 loadScanData();
 lucide.createIcons();
 document.addEventListener('click', () => closeMetricInfos());

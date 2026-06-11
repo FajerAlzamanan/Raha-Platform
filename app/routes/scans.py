@@ -20,7 +20,11 @@ from app.db_helpers import (
     delete_batch, update_scan_masks, rename_batch,
 )
 from app.auth_utils import auth_required
-from app.services.localizer import automated_crop_name, crop_scan_to_roi
+try:
+    from app.services.localizer import automated_crop_name, crop_scan_to_roi
+except ModuleNotFoundError:
+    automated_crop_name = None
+    crop_scan_to_roi = None
 
 router = APIRouter()
 UPLOAD_DIR = Path("uploads")
@@ -29,6 +33,7 @@ RAW_INPUT_DIR = UPLOAD_DIR / "raw_inputs"
 GENERATED_DIR = UPLOAD_DIR / "generated"
 RAW_INPUT_DIR.mkdir(exist_ok=True)
 GENERATED_DIR.mkdir(exist_ok=True)
+TB_N_VALUE = 6.7581
 
 RAT27_MASK_FIXTURE = Path("/Users/fajermohammed/Downloads/Rat27_Label_Strict.nii.gz")
 RAT27_RESULT_FIXTURE = {
@@ -40,7 +45,6 @@ RAT27_RESULT_FIXTURE = {
     "diagnosis": "Periodontitis",
     "severity": "mild",
 }
-
 
 def _safe_name(name: str, fallback: str) -> str:
     safe = Path(name or fallback).name
@@ -595,7 +599,7 @@ def get_scan_info(scan_id: int, user: dict = Depends(auth_required),
                 tb_sp = extra["tb_sp"] if extra else None
                 return {
                     **batch,
-                    "tb_th": tb_th, "tb_sp": tb_sp,
+                    "tb_th": tb_th, "tb_sp": tb_sp, "tb_n": TB_N_VALUE,
                     "base_scan_url": base_scan_url,
                     "ai_mask_url":   ai_mask_url,
                 }
@@ -636,7 +640,7 @@ def get_scan_info(scan_id: int, user: dict = Depends(auth_required),
                 f"/api/scans/serve/{scan['ai_mask_path']}?token={tok}"
                 if scan.get("ai_mask_path") else None
             )
-            return {**scan, "base_scan_url": base_scan_url, "ai_mask_url": ai_mask_url}
+            return {**scan, "tb_n": TB_N_VALUE, "base_scan_url": base_scan_url, "ai_mask_url": ai_mask_url}
 
 
 class IssueBody(BaseModel):

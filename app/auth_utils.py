@@ -53,7 +53,19 @@ def decode_token(token: str) -> dict:
 # ── FastAPI dependencies ───────────────────────────────────────────────────────
 
 def auth_required(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> dict:
-    return decode_token(credentials.credentials)
+    payload = decode_token(credentials.credentials)
+    user_id = payload.get("id")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+
+    from app.db_helpers import get_user_by_id
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    if user.get("role") == "suspended":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your account has been suspended by the administrator.")
+
+    return {"id": user["id"], "role": user["role"]}
 
 def admin_only(user: dict = Depends(auth_required)) -> dict:
     if user.get("role") != "admin":

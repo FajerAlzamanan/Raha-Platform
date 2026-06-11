@@ -57,7 +57,9 @@ def update_profile(body: ProfileUpdate, user: dict = Depends(auth_required)):
             raise HTTPException(400, err)
         fields["password_hash"] = hash_password(body.new_password)
 
-    update_user(user["id"], fields)
+    updated = update_user(user["id"], fields)
+    if not updated:
+        raise HTTPException(500, "Could not update profile")
     return {"message": "Profile updated"}
 
 

@@ -12,7 +12,7 @@ from monai.networks.nets import BasicUNet
 from scipy import ndimage as ndi
 
 
-DEFAULT_MODEL_PATH = Path("/Users/fajermohammed/Downloads/production_localizer.pt")
+DEFAULT_MODEL_PATH = Path("/Users/fellwakh/Downloads/production_localizer.pt")
 DEFAULT_MICRO_CT_SPACING_MM = float(os.getenv("LOCALIZER_DEFAULT_SPACING_MM", "0.01002"))
 MAX_TRUSTED_SPACING_MM = float(os.getenv("LOCALIZER_MAX_TRUSTED_SPACING_MM", "0.1"))
 DEFAULT_CROP_EDGE_MM = float(os.getenv("LOCALIZER_DEFAULT_CROP_EDGE_MM", "4.5"))

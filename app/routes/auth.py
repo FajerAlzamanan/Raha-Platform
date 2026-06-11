@@ -163,7 +163,7 @@ class SignupRequest(BaseModel):
     password: str
     title: str | None = None
     gender: str | None = None
-    institution: str | None = None       # stored in professional_role field
+    institution: str | None = None
     professional_role: str | None = None
 
 
@@ -183,7 +183,7 @@ def signup(body: SignupRequest):
 
     full_name, title = split_title_from_name(body.full_name, body.title)
     pw_hash = hash_password(body.password)
-    create_user(
+    created = create_user(
         full_name=full_name,
         email=body.email,
         password_hash=pw_hash,
@@ -191,7 +191,10 @@ def signup(body: SignupRequest):
         gender=body.gender,
         title=title,
         professional_role=body.professional_role,
+        institution=body.institution,
     )
+    if not created:
+        raise HTTPException(500, "Could not create account")
     return {"message": "Account created"}
 
 
@@ -202,6 +205,8 @@ def login(body: LoginRequest):
         raise HTTPException(400, "Invalid credentials")
     if not verify_password(body.password, user["password_hash"]):
         raise HTTPException(400, "Invalid credentials")
+    if user.get("role") == "suspended":
+        raise HTTPException(403, "Your account has been suspended by the administrator.")
 
     full_name, title = split_title_from_name(user["full_name"], user.get("title"))
     if full_name != user["full_name"] or title != user.get("title"):

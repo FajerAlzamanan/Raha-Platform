@@ -42,9 +42,10 @@ def create_user(full_name, email, password_hash, role='researcher', gender=None,
                     'INSERT INTO users (full_name,email,password_hash,role,gender,title,professional_role,institution) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',
                     (full_name, email, password_hash, role, gender, title, professional_role, institution)
                 )
+                return True
     except Exception as e:
         print(f"create_user error: {e}")
-        return None
+        return False
 
 def get_user(email):
     try:
@@ -279,9 +280,10 @@ def update_user(user_id, fields: dict):
             with conn.cursor() as cur:
                 sets = ', '.join(f'{k}=%s' for k in fields)
                 cur.execute(f'UPDATE users SET {sets} WHERE id=%s', (*fields.values(), user_id))
+                return cur.rowcount > 0
     except Exception as e:
         print(f"update_user error: {e}")
-        return None
+        return False
 
 def update_avatar(user_id, avatar_url):
     try:

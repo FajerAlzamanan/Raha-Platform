@@ -119,7 +119,7 @@ function renderIssueCard(issue) {
             </div>
             <div class="flex gap-3 flex-wrap">
               ${email ? `<a class="btn-primary" href="${emailHref}"><i data-lucide="mail" class="w-4 h-4"></i> Respond by Email</a>` : ''}
-              ${issue.scan_id ? `<a class="btn-outline" href="/scan/${issue.scan_id}"><i data-lucide="external-link" class="w-4 h-4"></i> Open Scan</a>` : ''}
+              ${issue.scan_id ? `<a class="btn-outline" href="/scan/${issue.scan_id}?adminReview=1"><i data-lucide="external-link" class="w-4 h-4"></i> Open Scan</a>` : ''}
               ${issue.status === 'open'
                 ? `<button onclick="setIssueStatus(${issue.id}, 'close')" class="btn-outline" style="color:#dc2626;border-color:#dc2626"><i data-lucide="check" class="w-4 h-4"></i> Close Issue</button>`
                 : `<button onclick="setIssueStatus(${issue.id}, 'reopen')" class="btn-outline"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reopen Issue</button>`}

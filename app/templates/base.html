@@ -507,8 +507,47 @@ function doLogout() {
 async function api(path, opts = {}) {
   const res = await fetch(path, { headers: Auth.headers(), ...opts });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || data.message || 'Request failed');
+  if (!res.ok) {
+    const message = data.detail || data.message || 'Request failed';
+    if (String(message).toLowerCase().includes('suspended')) {
+      Auth.clear();
+      showSuspendedModal();
+    }
+    throw new Error(message);
+  }
   return data;
+}
+
+function showSuspendedModal() {
+  showModal(`
+    <div class="text-center space-y-4">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto"
+           style="background:rgba(239,68,68,.12);color:#dc2626">
+        <i data-lucide="ban" class="w-6 h-6"></i>
+      </div>
+      <h3 class="font-heading text-xl font-bold" style="color:var(--text-primary)">Account Suspended</h3>
+      <p style="color:var(--text-secondary);line-height:1.6">
+        Your account has been suspended by the administrator. You can continue using Raha as a guest, but you cannot access researcher tools.
+      </p>
+      <button onclick="closeModal();window.location.href='/'" class="btn-primary w-full justify-center">
+        Continue as Guest
+      </button>
+    </div>`);
+  lucide.createIcons();
+}
+
+async function checkCurrentSession() {
+  if (!Auth.token()) return;
+  try {
+    const res = await fetch('/api/user/me', { headers: Auth.headers() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok && String(data.detail || data.message || '').toLowerCase().includes('suspended')) {
+      Auth.clear();
+      showSuspendedModal();
+    }
+  } catch (_) {
+    /* Keep the current page usable if the session check cannot reach the server. */
+  }
 }
 
 /* ── Toast ── */
@@ -575,7 +614,11 @@ function markActiveLink() {
 applyTheme();
 buildNav();
 markActiveLink();
-document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); updateDarkIcon(); });
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  updateDarkIcon();
+  checkCurrentSession();
+});
 </script>
 
 {% block scripts %}{% endblock %}
