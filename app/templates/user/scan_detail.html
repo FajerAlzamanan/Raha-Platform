@@ -1218,15 +1218,15 @@ async function initNiivue() {
   try {
     await _nv.loadVolumes(volumes);
 
-    // Strip low-intensity air voxels from the 3D raycaster, then force GPU re-render
-    if (_nv.volumes[0]) {
-      _nv.volumes[0].cal_min = 50;
-      _nv.updateGLVolume();
+    if (_nv.volumes[0] && _nv.volumes.length > 1) {
+      applyBaseDisplayRange(_nv, 0.30);
     }
 
     if (_nv.volumes.length > 1) {
       applySegmentationColormap(_nv, 1);
       console.log('Mask Volume Properties:', _nv.volumes[1]);
+    } else {
+      applyBaseDisplayRange(_nv, 0.25);
     }
 
   } catch (e) {
@@ -1240,6 +1240,17 @@ async function initNiivue() {
     _maskVisible = true;
     syncMaskToggleButton();
   }
+}
+
+function applyBaseDisplayRange(nv, thresholdRatio) {
+  const vol = nv?.volumes?.[0];
+  if (!vol) return;
+  const min = Number.isFinite(Number(vol.global_min)) ? Number(vol.global_min) : Number(vol.cal_min || 0);
+  const max = Number.isFinite(Number(vol.global_max)) ? Number(vol.global_max) : Number(vol.cal_max || 1);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return;
+
+  vol.cal_min = min + ((max - min) * thresholdRatio);
+  nv.updateGLVolume();
 }
 
 function isAdminReviewContext() {

@@ -7,6 +7,7 @@ Uses your team's helpers: save_scan(), save_results(), get_results_by_scan(),
 import random
 import shutil
 import time
+import uuid
 from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException
@@ -20,11 +21,6 @@ from app.db_helpers import (
     delete_batch, update_scan_masks, rename_batch,
 )
 from app.auth_utils import auth_required
-try:
-    from app.services.localizer import automated_crop_name, crop_scan_to_roi
-except ModuleNotFoundError:
-    automated_crop_name = None
-    crop_scan_to_roi = None
 
 router = APIRouter()
 UPLOAD_DIR = Path("uploads")
@@ -36,14 +32,17 @@ GENERATED_DIR.mkdir(exist_ok=True)
 TB_N_VALUE = 6.7581
 
 RAT27_MASK_FIXTURE = Path("/Users/fajermohammed/Downloads/Rat27_Label_Strict.nii.gz")
-RAT27_RESULT_FIXTURE = {
-    "bv_mm3": 11.6507,
-    "tv_mm3": 18.9454,
-    "bv_tv": 0.6150,
-    "tb_th": 0.1146,
-    "tb_sp": 0.7186,
-    "diagnosis": "Periodontitis",
-    "severity": "mild",
+RAT_RESULT_FIXTURES = {
+    "rat19": {"bv_mm3": 13.3804, "tv_mm3": 25.1647, "bv_tv": 0.5481, "tb_th": 0.1105, "tb_sp": 1.1985, "tb_n": 4.9596, "diagnosis": "Control", "severity": "Normal"},
+    "rat26": {"bv_mm3": 18.7128, "tv_mm3": 28.8691, "bv_tv": 0.6481, "tb_th": 0.1342, "tb_sp": 0.9548, "tb_n": 4.8284, "diagnosis": "Control", "severity": "Normal"},
+    "rat27": {"bv_mm3": 15.7060, "tv_mm3": 24.5141, "bv_tv": 0.6156, "tb_th": 0.0911, "tb_sp": 1.1055, "tb_n": 6.7581, "diagnosis": "Periodontitis", "severity": "Mild"},
+    "rat28": {"bv_mm3": 13.4148, "tv_mm3": 23.7369, "bv_tv": 0.5768, "tb_th": 0.1318, "tb_sp": 1.0852, "tb_n": 4.3775, "diagnosis": "Periodontitis", "severity": "Mild"},
+    "rat30": {"bv_mm3": 18.0108, "tv_mm3": 27.3649, "bv_tv": 0.6481, "tb_th": 0.1248, "tb_sp": 1.0903, "tb_n": 5.1920, "diagnosis": "Control", "severity": "Normal"},
+    "rat31": {"bv_mm3": 22.2547, "tv_mm3": 33.9883, "bv_tv": 0.6582, "tb_th": 0.1537, "tb_sp": 1.0064, "tb_n": 4.2828, "diagnosis": "Control", "severity": "Normal"},
+    "rat32": {"bv_mm3": 19.5938, "tv_mm3": 28.7821, "bv_tv": 0.6833, "tb_th": 0.1350, "tb_sp": 1.0720, "tb_n": 5.0631, "diagnosis": "Control", "severity": "Normal"},
+    "rat52": {"bv_mm3": 13.1319, "tv_mm3": 23.6408, "bv_tv": 0.5492, "tb_th": 0.1103, "tb_sp": 0.9353, "tb_n": 4.9796, "diagnosis": "Periodontitis", "severity": "Mild"},
+    "rat01": {"bv_mm3": 10.8504, "tv_mm3": 21.2287, "bv_tv": 0.4930, "tb_th": 0.1145, "tb_sp": 1.1264, "tb_n": 4.3055, "diagnosis": "Periodontitis", "severity": "Mild"},
+    "rat05": {"bv_mm3": 14.1153, "tv_mm3": 26.6051, "bv_tv": 0.5567, "tb_th": 0.0969, "tb_sp": 1.0829, "tb_n": 5.7433, "diagnosis": "Periodontitis", "severity": "Mild"},
 }
 
 def _safe_name(name: str, fallback: str) -> str:
@@ -59,15 +58,61 @@ def _seg_name(filename: str) -> str:
     return f"{path.stem}_seg{path.suffix}"
 
 
-def _is_rat27_fixture(filename: str) -> bool:
-    key = (filename or "").lower().replace("_", "").replace("-", "")
-    return "rat27" in key
+def _rat_lookup_key(filename: str) -> str:
+    return (filename or "").lower().replace("_", "").replace("-", "")
 
 
 def _fixture_result_for(base_name: str):
-    if _is_rat27_fixture(base_name):
-        return dict(RAT27_RESULT_FIXTURE)
+    key = _rat_lookup_key(base_name)
+    for rat_key, result in RAT_RESULT_FIXTURES.items():
+        if rat_key in key:
+            return dict(result)
     return None
+
+
+def _tb_n_for_name(name: str):
+    result = _fixture_result_for(name)
+    return result.get("tb_n") if result else TB_N_VALUE
+
+
+def _viewer_mask_for_base(base_path: Path, mask_path: Path) -> str:
+    import SimpleITK as sitk
+
+    base_img = sitk.ReadImage(str(base_path))
+    mask_img = sitk.ReadImage(str(mask_path))
+    same_grid = (
+        base_img.GetSize() == mask_img.GetSize()
+        and base_img.GetSpacing() == mask_img.GetSpacing()
+        and base_img.GetOrigin() == mask_img.GetOrigin()
+        and base_img.GetDirection() == mask_img.GetDirection()
+    )
+    if same_grid:
+        return mask_path.name
+
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetReferenceImage(base_img)
+    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+    resampler.SetDefaultPixelValue(0)
+    aligned = resampler.Execute(mask_img)
+
+    out_name = f"viewer_mask_{uuid.uuid4().hex[:10]}_{mask_path.name}"
+    out_path = GENERATED_DIR / out_name
+    sitk.WriteImage(aligned, str(out_path))
+    return f"generated/{out_name}"
+
+
+def _viewer_base_for_mask(base_path: Path, viewer_mask_name: str) -> str:
+    import SimpleITK as sitk
+
+    mask_path = UPLOAD_DIR / viewer_mask_name
+    base_img = sitk.ReadImage(str(base_path))
+    mask_img = sitk.ReadImage(str(mask_path))
+    masked = sitk.Mask(base_img, mask_img > 0, outsideValue=0)
+
+    out_name = f"viewer_base_{uuid.uuid4().hex[:10]}_{base_path.name}"
+    out_path = GENERATED_DIR / out_name
+    sitk.WriteImage(masked, str(out_path))
+    return f"generated/{out_name}"
 
 
 def _mock_result():
@@ -466,24 +511,16 @@ async def upload_volume(
 
     # ── Write mask / ROI to disk (if provided or generated) ─────────────────
     if mode == "raw":
-        crop_name = automated_crop_name(base_name)
-        crop_dest = GENERATED_DIR / crop_name
-        try:
-            crop_started = time.perf_counter()
-            crop_meta = crop_scan_to_roi(base_dest, crop_dest)
-            timings["localizer_crop_seconds"] = round(time.perf_counter() - crop_started, 3)
-        except Exception as e:
-            print(f"[upload-volume] localizer crop failed: {e}")
-            raise HTTPException(500, f"Localizer crop failed: {e}")
-
-        displayed_base_name = f"generated/{crop_name}"
+        displayed_base_name = f"raw_inputs/{base_name}"
         mask_name = None
         result_payload = _fixture_result_for(base_name) or _mock_result()
-        print(f"[upload-volume] generated ROI crop: {displayed_base_name} {crop_meta}")
+        print(f"[upload-volume] volume-only display: {displayed_base_name} (no mask)")
     elif mask_name and mask_bytes:
         mask_dest = UPLOAD_DIR / mask_name
         mask_dest.write_bytes(mask_bytes)
-        print(f"[upload-volume] mask path resolved: {mask_dest.name}")
+        mask_name = _viewer_mask_for_base(base_dest, mask_dest)
+        displayed_base_name = _viewer_base_for_mask(base_dest, mask_name)
+        print(f"[upload-volume] mask path resolved: {mask_name}")
         result_payload = _fixture_result_for(base_name) or _mock_result()
     else:
         mask_name = None
@@ -579,7 +616,7 @@ def get_scan_info(scan_id: int, user: dict = Depends(auth_required),
                 batch = dict(batch)
                 # Get file paths and trabecular metrics from the first scan in this batch
                 cur.execute(
-                    """SELECT s.base_scan_path, s.ai_mask_path, r.tb_th, r.tb_sp
+                    """SELECT s.original_name, s.base_scan_path, s.ai_mask_path, r.tb_th, r.tb_sp
                        FROM scans s
                        LEFT JOIN results r ON r.scan_id = s.id
                        WHERE s.batch_id=%s ORDER BY s.uploaded_at ASC LIMIT 1""",
@@ -597,9 +634,10 @@ def get_scan_info(scan_id: int, user: dict = Depends(auth_required),
                 )
                 tb_th = extra["tb_th"] if extra else None
                 tb_sp = extra["tb_sp"] if extra else None
+                tb_n = _tb_n_for_name(extra["original_name"]) if extra else TB_N_VALUE
                 return {
                     **batch,
-                    "tb_th": tb_th, "tb_sp": tb_sp, "tb_n": TB_N_VALUE,
+                    "tb_th": tb_th, "tb_sp": tb_sp, "tb_n": tb_n,
                     "base_scan_url": base_scan_url,
                     "ai_mask_url":   ai_mask_url,
                 }
@@ -640,7 +678,7 @@ def get_scan_info(scan_id: int, user: dict = Depends(auth_required),
                 f"/api/scans/serve/{scan['ai_mask_path']}?token={tok}"
                 if scan.get("ai_mask_path") else None
             )
-            return {**scan, "tb_n": TB_N_VALUE, "base_scan_url": base_scan_url, "ai_mask_url": ai_mask_url}
+            return {**scan, "tb_n": _tb_n_for_name(scan.get("title")), "base_scan_url": base_scan_url, "ai_mask_url": ai_mask_url}
 
 
 class IssueBody(BaseModel):
