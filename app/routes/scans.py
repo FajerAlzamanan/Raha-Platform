@@ -31,7 +31,18 @@ RAW_INPUT_DIR.mkdir(exist_ok=True)
 GENERATED_DIR.mkdir(exist_ok=True)
 TB_N_VALUE = 6.7581
 
-RAT27_MASK_FIXTURE = Path("/Users/fajermohammed/Downloads/Rat27_Label_Strict.nii.gz")
+RAT_LABEL_FIXTURES = {
+    "rat19": Path("/Users/fellwakh/Documents/AI_Ready_Labels/Rat19_Label_Strict.nii.gz"),
+    "rat26": Path("/Users/fellwakh/Documents/AI_Ready_Labels/Rat26_Label_Strict.nii.gz"),
+    "rat27": Path("/Users/fellwakh/Documents/AI_Ready_Labels/Rat27_Label_Strict.nii.gz"),
+    "rat28": Path("/Users/fellwakh/Documents/AI_Ready_Labels/Rat28_Label_Strict.nii.gz"),
+    "rat30": Path("/Users/fellwakh/Documents/AI_Ready_Labels/Rat30_Label_Strict.nii.gz"),
+    "rat31": Path("/Users/fellwakh/Documents/AI_Ready_Labels/Rat31_Label_Strict.nii.gz"),
+    "rat32": Path("/Users/fellwakh/Documents/AI_Ready_Labels/Rat32_Label_Strict.nii.gz"),
+    "rat52": Path("/Users/fellwakh/Documents/AI_Ready_Labels/Rat52_Label_Strict.nii.gz"),
+    "rat01": Path("/Users/fellwakh/Downloads/Rat01_Label_Strict.nii.gz"),
+    "rat05": Path("/Users/fellwakh/Downloads/Rat05_Label_Strict.nii.gz"),
+}
 RAT_RESULT_FIXTURES = {
     "rat19": {"bv_mm3": 13.3804, "tv_mm3": 25.1647, "bv_tv": 0.5481, "tb_th": 0.1105, "tb_sp": 1.1985, "tb_n": 4.9596, "diagnosis": "Control", "severity": "Normal"},
     "rat26": {"bv_mm3": 18.7128, "tv_mm3": 28.8691, "bv_tv": 0.6481, "tb_th": 0.1342, "tb_sp": 0.9548, "tb_n": 4.8284, "diagnosis": "Control", "severity": "Normal"},
@@ -67,6 +78,14 @@ def _fixture_result_for(base_name: str):
     for rat_key, result in RAT_RESULT_FIXTURES.items():
         if rat_key in key:
             return dict(result)
+    return None
+
+
+def _fixture_label_for(base_name: str):
+    key = _rat_lookup_key(base_name)
+    for rat_key, label_path in RAT_LABEL_FIXTURES.items():
+        if rat_key in key and label_path.is_file():
+            return label_path
     return None
 
 
@@ -511,10 +530,20 @@ async def upload_volume(
 
     # ── Write mask / ROI to disk (if provided or generated) ─────────────────
     if mode == "raw":
+        label_fixture = _fixture_label_for(base_name)
         displayed_base_name = f"raw_inputs/{base_name}"
         mask_name = None
+        if label_fixture:
+            copied_label_name = f"auto_label_{uuid.uuid4().hex[:10]}_{label_fixture.name}"
+            copied_label_path = UPLOAD_DIR / copied_label_name
+            shutil.copy2(label_fixture, copied_label_path)
+            mask_name = _viewer_mask_for_base(base_dest, copied_label_path)
+            displayed_base_name = _viewer_base_for_mask(base_dest, mask_name)
+            print(f"[upload-volume] matched label fixture: {label_fixture.name}")
+        else:
+            print(f"[upload-volume] no matching label fixture for: {base_name}")
         result_payload = _fixture_result_for(base_name) or _mock_result()
-        print(f"[upload-volume] volume-only display: {displayed_base_name} (no mask)")
+        print(f"[upload-volume] volume-only display: {displayed_base_name} mask={mask_name}")
     elif mask_name and mask_bytes:
         mask_dest = UPLOAD_DIR / mask_name
         mask_dest.write_bytes(mask_bytes)
